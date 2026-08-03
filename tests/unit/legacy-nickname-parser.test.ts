@@ -14,8 +14,10 @@ describe("LegacyNicknameParser", () => {
 		["? | Unregistriert", "LEGACY_UNREGISTERED"],
 		["Unregistriert | udomituwu", "LEGACY_UNREGISTERED"],
 		["arbitrary # text", "UNKNOWN_FORMAT"],
-		["Name | #EUW", "UNKNOWN_FORMAT"],
-		["Name | Game#", "UNKNOWN_FORMAT"],
+		["Nico | XxXHeroSwordXxX", "LEGACY_VERIFIED_NO_RIOT"],
+		["Willy | Unregistriert", "LEGACY_VERIFIED_NO_RIOT"],
+		["Name | #EUW", "LEGACY_VERIFIED_NO_RIOT"],
+		["Name | Game#", "LEGACY_VERIFIED_NO_RIOT"],
 	])("classifies %s", (nickname, category) => expect(parser.parse(nickname).category).toBe(category));
 	it("parses rightmost pipe and final hash", () =>
 		expect(parser.parse("A | B | Game#One#EUW")).toMatchObject({
@@ -44,6 +46,18 @@ describe("LegacyNicknameParser", () => {
 			gameName: null,
 			tagLine: null,
 		}));
+	it("falls back to verified without Riot when only the personal-name side is usable", () => {
+		expect(parser.parse("Nico | XxXHeroSwordXxX")).toMatchObject({
+			category: "LEGACY_VERIFIED_NO_RIOT",
+			displayName: "Nico",
+			gameName: null,
+			tagLine: null,
+		});
+		expect(parser.parse("Willy | Unregistriert")).toMatchObject({
+			category: "LEGACY_VERIFIED_NO_RIOT",
+			displayName: "Willy",
+		});
+	});
 	it("supports configured whitespace variations", () => expect(new LegacyNicknameParser(true).parse("?    |   Unregistriert").category).toBe("LEGACY_UNREGISTERED"));
 	it("handles Unicode", () =>
 		expect(parser.parse("Mårtin | 例子#欧洲")).toMatchObject({

@@ -69,11 +69,12 @@ export class LegacyNicknameParser {
 		if (pipe < 0) return this.unknown(originalNickname);
 		const left = value.slice(0, pipe).trim();
 		const right = value.slice(pipe + 1).trim();
+		if (!left) return this.unknown(originalNickname);
 		const hash = right.lastIndexOf("#");
-		if (!left || hash <= 0 || hash === right.length - 1) return this.unknown(originalNickname);
+		if (hash <= 0 || hash === right.length - 1) return left === "?" ? this.unknown(originalNickname) : this.verifiedWithoutRiot(originalNickname, left);
 		const gameName = right.slice(0, hash).trim();
 		const tagLine = right.slice(hash + 1).trim();
-		if (!gameName || !tagLine || (gameName === "?" && tagLine === "?")) return this.unknown(originalNickname);
+		if (!gameName || !tagLine || gameName === "?" || tagLine === "?") return left === "?" ? this.unknown(originalNickname) : this.verifiedWithoutRiot(originalNickname, left);
 		if (left === "?")
 			return {
 				category: "LEGACY_REGISTERED_HIDDEN_NAME",
@@ -101,6 +102,17 @@ export class LegacyNicknameParser {
 			gameName: null,
 			tagLine: null,
 			nameVisibility: null,
+		};
+	}
+
+	private verifiedWithoutRiot(originalNickname: string | null, displayName: string): LegacyParseResult {
+		return {
+			category: "LEGACY_VERIFIED_NO_RIOT",
+			originalNickname,
+			displayName,
+			gameName: null,
+			tagLine: null,
+			nameVisibility: "VISIBLE",
 		};
 	}
 }
