@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="de">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="description" content="Datenschutzerklärung für den Discord-Registrierungsbot der Gaming Community." />
+		<title>Datenschutzerklärung – Discord-Registrierungsbot</title>
+		<link rel="stylesheet" href="styles.css" />
+	</head>
+	<body>
+		<main class="shell document">
+			<nav><a href="index.html">← Übersicht</a><a href="terms.html">Nutzungsbedingungen</a></nav>
+			<header>
+				<span class="eyebrow">Datenschutz</span>
+				<h1>Datenschutzerklärung</h1>
+				<p class="lede">Diese Erklärung beschreibt die Datenverarbeitung durch den Discord-Registrierungsbot der Gaming Community.</p>
+				<p class="meta">Gültig ab 3. August 2026 · Version 1.0</p>
+			</header>
+
+			<section>
+				<h2>1. Verantwortlicher und Kontakt</h2>
+				<p>
+					Der Bot wird vom Betreiber des GitHub-Kontos <strong>Vexify4103</strong> für eine einzelne Discord-Community betrieben. Datenschutzanfragen können über ein
+					vertraulich formuliertes Support-Ticket oder über die
+					<a href="https://github.com/Vexify4103/discord-registration-bot/issues">GitHub-Issues des Projekts</a> gestellt werden. Bitte veröffentliche dort keine
+					Riot-PUUID, Tokens oder andere vertrauliche Daten.
+				</p>
+			</section>
+
+			<section>
+				<h2>2. Verarbeitete Daten</h2>
+				<ul>
+					<li>Discord-Benutzer-ID, aktueller Benutzername sowie Serverbeitritts- und Austrittszeitpunkte;</li>
+					<li>Registrierungsstatus, zugewiesene Registrierungsrollen und Synchronisierungsstatus;</li>
+					<li>freiwillig angegebener persönlicher Anzeigename, sofern die sichtbare Namensdarstellung gewählt wird;</li>
+					<li>Riot-PUUID, kanonischer Riot-Name und Tag, Plattformregion, Routing-Gruppe und OP.GG-Profillink;</li>
+					<li>Zeitpunkte und technische Ergebniskennungen von Registrierung, Migration, Rollen-, Nickname- und Riot-Synchronisierung;</li>
+					<li>Auditdaten zu administrativen und automatisierten Aktionen.</li>
+				</ul>
+				<p>Bei verborgener Namensdarstellung wird kein aktiver persönlicher Anzeigename gespeichert. Ein Discord-Benutzername wird nicht als echter Name interpretiert.</p>
+			</section>
+
+			<section>
+				<h2>3. Herkunft und Zwecke</h2>
+				<p>
+					Daten stammen aus Discord, aus Angaben über Slash-Commands und aus Antworten der Riot Account API. Sie werden ausschließlich verwendet, um Mitgliedschaften zu
+					registrieren, Riot-Identitäten anhand der dauerhaften PUUID zu verifizieren, Rollen und Nicknames abzugleichen, Migrations- und Fehlerzustände sicher
+					fortzusetzen, Missbrauch zu verhindern und nicht registrierte Mitglieder nach Ablauf der angekündigten Frist zu entfernen.
+				</p>
+			</section>
+
+			<section>
+				<h2>4. Dienste Dritter</h2>
+				<p>
+					Der Bot kommuniziert mit Discord zur Bereitstellung von Commands, Rollen, Nicknames, Direktnachrichten und Mitgliedschaftsfunktionen sowie mit der Riot Games
+					Account API zur Verifizierung und Aktualisierung von Riot-Identitäten. OP.GG-Links werden validiert und normalisiert; der Bot ruft zur Registrierung keine
+					Profildaten von OP.GG ab. Für die jeweiligen Plattformen gelten zusätzlich deren eigene Datenschutzbestimmungen.
+				</p>
+				<p><a href="https://discord.com/privacy">Discord-Datenschutz</a> · <a href="https://www.riotgames.com/en/privacy-notice">Riot Games-Datenschutz</a></p>
+			</section>
+
+			<section>
+				<h2>5. Speicherdauer</h2>
+				<ul>
+					<li>Aktive Registrierungsdaten werden während der Mitgliedschaft und solange sie für den Botbetrieb erforderlich sind gespeichert.</li>
+					<li>Nach Abmeldung, Austritt oder Wechsel zur verborgenen Namensdarstellung vorgesehene Archivdaten werden standardmäßig nach 30 Tagen gelöscht.</li>
+					<li>Technische Auditdaten werden standardmäßig nach 180 Tagen gelöscht; sensible Metadaten werden früher reduziert.</li>
+					<li>Geprüfte Backups werden nach dem dokumentierten Rotationsplan aufbewahrt und überschrieben.</li>
+				</ul>
+			</section>
+
+			<section>
+				<h2>6. Löschung und Rechte</h2>
+				<p>
+					Autorisierte Administratoren können mit <code>/delete-registration-data</code> aktive und zurückbehaltene Registrierungsdaten löschen. Für ein aktuell
+					anwesendes Mitglied verbleibt der minimale Datensatz, der notwendig ist, um den Status <em>nicht registriert</em> und die siebentägige Frist sicher zu
+					verwalten. Darüber hinaus können Betroffene Auskunft, Berichtigung oder Löschung über den oben genannten Kontakt anfragen, soweit keine zwingenden betrieblichen
+					oder gesetzlichen Gründe entgegenstehen.
+				</p>
+			</section>
+
+			<section>
+				<h2>7. Weitergabe und Verkauf</h2>
+				<p>
+					Personenbezogene Daten werden nicht verkauft, nicht für Werbung oder Profiling verwendet und nur an die für die Funktion erforderlichen Plattformdienste
+					übermittelt. Administrativer Zugriff ist auf autorisierte Community-Mitarbeiter beschränkt.
+				</p>
+			</section>
+
+			<section>
+				<h2>8. Sicherheit</h2>
+				<p>
+					Die Datenbank wird lokal beim Botbetreiber gespeichert. Zugriff, Dateiberechtigungen, strukturierte Protokollierung, maskierte PUUID-Ausgabe, verschlüsselte
+					externe Backups und eine begrenzte Datenaufbewahrung sollen unbefugten Zugriff und unnötige Speicherung reduzieren. Riot- und Discord-Tokens werden nicht in das
+					öffentliche Repository aufgenommen.
+				</p>
+			</section>
+
+			<section>
+				<h2>9. Änderungen</h2>
+				<p>
+					Diese Erklärung kann angepasst werden, wenn sich Funktionen, Aufbewahrungsregeln oder rechtliche Anforderungen ändern. Das Änderungsdatum und die
+					Versionshistorie sind im öffentlichen Repository nachvollziehbar.
+				</p>
+			</section>
+			<footer><a href="https://github.com/Vexify4103/discord-registration-bot">GitHub-Repository</a><span>Version 1.0</span></footer>
+		</main>
+	</body>
+</html>

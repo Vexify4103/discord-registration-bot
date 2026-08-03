@@ -1,0 +1,8 @@
+.claude
+.codex-home
+.corepack
+.next
+node_modules
+package.json
+pnpm-lock.yaml
+pnpm-workspace.yaml

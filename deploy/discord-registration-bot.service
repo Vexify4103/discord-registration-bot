@@ -1,0 +1,24 @@
+[Unit]
+Description=Discord Registration Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=discord-registration
+Group=discord-registration
+WorkingDirectory=/opt/discord-registration/current
+EnvironmentFile=/etc/discord-registration-bot.env
+ExecStart=/usr/bin/node /opt/discord-registration/current/dist/index.js
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=30
+KillSignal=SIGTERM
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/discord-registration
+
+[Install]
+WantedBy=multi-user.target
