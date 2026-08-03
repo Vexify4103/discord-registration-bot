@@ -5,12 +5,14 @@ describe("LegacyNicknameParser", () => {
 	const parser = new LegacyNicknameParser();
 	it.each([
 		["? | ExamplePlayer#EUW", "LEGACY_REGISTERED_HIDDEN_NAME"],
+		["Soraka#2962", "LEGACY_REGISTERED_HIDDEN_NAME"],
 		["Martin | ExamplePlayer#EUW", "LEGACY_REGISTERED_VISIBLE_NAME"],
 		["Martin | ?#?", "LEGACY_VERIFIED_NO_RIOT"],
 		["? | ?#?", "LEGACY_UNREGISTERED"],
 		["ß Unregistriert", "LEGACY_UNREGISTERED"],
 		["? Unregistriert", "LEGACY_UNREGISTERED"],
 		["? | Unregistriert", "LEGACY_UNREGISTERED"],
+		["Unregistriert | udomituwu", "LEGACY_UNREGISTERED"],
 		["arbitrary # text", "UNKNOWN_FORMAT"],
 		["Name | #EUW", "UNKNOWN_FORMAT"],
 		["Name | Game#", "UNKNOWN_FORMAT"],
@@ -25,6 +27,14 @@ describe("LegacyNicknameParser", () => {
 		expect(parser.parse("? | Spieler#EUW")).toMatchObject({
 			nameVisibility: "HIDDEN",
 			displayName: null,
+		}));
+	it("treats a standalone Riot ID as a hidden-name candidate", () =>
+		expect(parser.parse("Fullbananaz#EUW")).toMatchObject({
+			category: "LEGACY_REGISTERED_HIDDEN_NAME",
+			displayName: null,
+			gameName: "Fullbananaz",
+			tagLine: "EUW",
+			nameVisibility: "HIDDEN",
 		}));
 	it("retains the known display name for members without a Riot account", () =>
 		expect(parser.parse("Martin | ?#?")).toMatchObject({

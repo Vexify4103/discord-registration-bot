@@ -7,7 +7,7 @@ export interface LegacyParseResult {
 	gameName: string | null;
 	tagLine: string | null;
 	nameVisibility: NameVisibility | null;
-	unregisteredPattern?: "NAME_UNKNOWN" | "SHARP_S" | "QUESTION_SPACE" | "QUESTION_PIPE";
+	unregisteredPattern?: "NAME_UNKNOWN" | "SHARP_S" | "QUESTION_SPACE" | "QUESTION_PIPE" | "CURRENT_TEMPLATE";
 }
 
 export class LegacyNicknameParser {
@@ -36,6 +36,7 @@ export class LegacyNicknameParser {
 			[this.allowWhitespaceVariations ? /^ß\s*Unregistriert$/u : /^ß Unregistriert$/u, "SHARP_S"],
 			[this.allowWhitespaceVariations ? /^\?\s*Unregistriert$/u : /^\? Unregistriert$/u, "QUESTION_SPACE"],
 			[this.allowWhitespaceVariations ? /^\?\s*\|\s*Unregistriert$/u : /^\? \| Unregistriert$/u, "QUESTION_PIPE"],
+			[this.allowWhitespaceVariations ? /^Unregistriert\s*\|\s*.+$/u : /^Unregistriert \| .+$/u, "CURRENT_TEMPLATE"],
 		];
 		for (const [pattern, unregisteredPattern] of literalPatterns)
 			if (pattern.test(value))
@@ -48,6 +49,22 @@ export class LegacyNicknameParser {
 					nameVisibility: null,
 					unregisteredPattern: unregisteredPattern!,
 				};
+		if (!value.includes("|")) {
+			const hash = value.lastIndexOf("#");
+			if (hash > 0 && hash < value.length - 1) {
+				const rawGameName = value.slice(0, hash);
+				const rawTagLine = value.slice(hash + 1);
+				if (rawGameName === rawGameName.trim() && rawTagLine === rawTagLine.trim() && rawGameName !== "?" && rawTagLine !== "?")
+					return {
+						category: "LEGACY_REGISTERED_HIDDEN_NAME",
+						originalNickname,
+						displayName: null,
+						gameName: rawGameName,
+						tagLine: rawTagLine,
+						nameVisibility: "HIDDEN",
+					};
+			}
+		}
 		const pipe = value.lastIndexOf("|");
 		if (pipe < 0) return this.unknown(originalNickname);
 		const left = value.slice(0, pipe).trim();
