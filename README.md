@@ -17,6 +17,8 @@ Im Discord Developer Portal muss unter **Bot → Privileged Gateway Intents** de
 
 Die Rollen werden nicht automatisch verändert. Die erwartete Reihenfolge ist Bot, Staff, Verifiziert, Verifiziert | Privat, Unregistriert, @everyone. Beide verifizierten Rollen müssen separat angezeigt werden; Unregistriert darf nicht separat angezeigt werden.
 
+Automatische Entfernungen nicht registrierter Mitglieder sind standardmäßig deaktiviert. Nur `CLEANUP_ENABLED=true` aktiviert den Kick-Worker; `REGISTRATION_EXPIRY_DAYS` legt dann die Frist fest.
+
 ## Betrieb
 
 Siehe [Deployment](docs/deployment.md) und [Backup/Wiederherstellung](docs/backup-recovery.md).

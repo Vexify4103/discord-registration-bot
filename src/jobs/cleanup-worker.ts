@@ -23,6 +23,10 @@ export class CleanupWorker {
 		private readonly logger: Logger
 	) {}
 	start(): void {
+		if (!this.config.CLEANUP_ENABLED) {
+			this.logger.info("Automatic unregistered-member cleanup is disabled");
+			return;
+		}
 		this.timer = setInterval(() => void this.tick(), this.config.REGISTRATION_CLEANUP_INTERVAL_MINUTES * 60_000);
 		void this.tick();
 	}
@@ -30,7 +34,7 @@ export class CleanupWorker {
 		if (this.timer) clearInterval(this.timer);
 	}
 	async tick(): Promise<void> {
-		if (this.running || !this.leases.acquire("cleanup", 10 * 60_000)) return;
+		if (!this.config.CLEANUP_ENABLED || this.running || !this.leases.acquire("cleanup", 10 * 60_000)) return;
 		this.running = true;
 		try {
 			const cutoff = Date.now() - this.config.REGISTRATION_EXPIRY_DAYS * 86_400_000;

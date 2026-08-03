@@ -33,6 +33,7 @@ export const configSchema = z
 		UNREGISTERED_NICKNAME_TEMPLATE: z.string().min(1).default("Unregistriert | {username}"),
 		REGISTRATION_EXPIRY_DAYS: integer(7, 1),
 		REGISTRATION_CLEANUP_INTERVAL_MINUTES: integer(60, 1),
+		CLEANUP_ENABLED: bool(false),
 		REGISTRATION_DATA_RETENTION_DAYS: integer(30, 0),
 		MIGRATION_GRACE_PERIOD_DAYS: integer(7, 1),
 		UNKNOWN_MEMBER_MIGRATION_POLICY: z.enum(["unregister", "skip", "require-manual-review"]).default("require-manual-review"),
