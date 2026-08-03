@@ -190,7 +190,7 @@ async function registrationReply(interaction: ChatInputCommandInteraction, resul
 
 async function handleSetup(interaction: ChatInputCommandInteraction, actor: GuildMember, ctx: InteractionContext): Promise<void> {
 	const mode = interaction.options.getString("mode", true);
-	if (["apply", "pause", "resume"].includes(mode) && !ctx.permissions.isAdministrator(actor)) {
+	if (["apply", "pause", "resume", "cancel"].includes(mode) && !ctx.permissions.isAdministrator(actor)) {
 		await interaction.editReply(ctx.i18n.t("permissions.denied"));
 		return;
 	}
@@ -211,6 +211,15 @@ async function handleSetup(interaction: ChatInputCommandInteraction, actor: Guil
 		return;
 	}
 	const activeJob = ctx.migrations.active(interaction.guildId!);
+	if (mode === "cancel") {
+		if (!activeJob) {
+			await interaction.editReply(ctx.i18n.t("migration.noActive"));
+			return;
+		}
+		ctx.migrations.cancel(activeJob.id);
+		await interaction.editReply(ctx.i18n.t("migration.activeCancelled"));
+		return;
+	}
 	if (mode === "apply" && activeJob) {
 		await interaction.editReply(ctx.i18n.t("migration.activeExists"));
 		return;

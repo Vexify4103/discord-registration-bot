@@ -24,6 +24,7 @@ describe("German localization", () => {
 			.find((command) => command.name === "registration-setup");
 		const mode = setup?.options?.find((option) => option.name === "mode");
 		expect(mode && "choices" in mode ? mode.choices : []).toContainEqual({ name: "Pausieren", value: "pause" });
+		expect(mode && "choices" in mode ? mode.choices : []).toContainEqual({ name: "Abbrechen", value: "cancel" });
 	});
 	it("formats dates in German/Berlin", () => expect(i18n.date(new Date("2026-08-03T12:00:00Z"))).toMatch(/03\.08\.2026|03\.08\.26|3\. Aug\. 2026/));
 	it("localizes command descriptions", () =>

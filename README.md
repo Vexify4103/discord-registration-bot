@@ -30,5 +30,6 @@ Siehe [Deployment](docs/deployment.md) und [Backup/Wiederherstellung](docs/backu
 - `/registration-setup mode:Status` zeigt Fortschritt, offene Fälle, manuelle Prüfungen und Fehler.
 - `/registration-setup mode:Pausieren` stoppt die Verarbeitung nach dem bereits begonnenen Mitglied.
 - `/registration-setup mode:Fortsetzen` setzt eine pausierte Migration fort.
+- `/registration-setup mode:Abbrechen` beendet einen laufenden oder pausierten Job, ohne bereits verarbeitete Mitglieder zurückzusetzen. Danach kann eine neue Vorschau erstellt werden.
 
 `Name | ?#?` wird als `VERIFIED_NO_RIOT` übernommen: Der bekannte Name und der Nickname bleiben erhalten, das Mitglied erhält die Rolle **Verifiziert** und wird weder per Riot synchronisiert noch vom Cleanup erfasst. Wird bei `Name | RiotID#Tag` das alte Riot-Konto nicht gefunden, verwendet der Bot ebenfalls diesen Zustand und normalisiert den Nickname zu `Name | ?#?`. Ein nicht gefundenes verborgenes Konto ohne bekannten Namen bleibt dagegen in `PENDING_VERIFICATION` und wird als `MANUAL_REVIEW` gespeichert.
