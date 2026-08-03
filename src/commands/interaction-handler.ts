@@ -18,6 +18,7 @@ import { RegistrationRepository } from "../repositories/registration-repository.
 import { MigrationService } from "../services/migration-service.js";
 import { PermissionService } from "../services/permission-service.js";
 import { RegistrationService, type RegistrationResult } from "../services/registration-service.js";
+import { manualReviewMessage, migrationStatusMessage } from "../services/migration-status-presenter.js";
 import { RiotSyncWorker } from "../jobs/riot-sync-worker.js";
 import { diagnoseGuild } from "../integrations/discord/diagnostics.js";
 
@@ -233,6 +234,10 @@ async function handleSetup(interaction: ChatInputCommandInteraction, actor: Guil
 		await interaction.editReply(unknownFormatPage(job.id, actor.id, 0, ctx));
 		return;
 	}
+	if (mode === "manual-review") {
+		await interaction.editReply(manualReviewPage(job.id, actor.id, 0, ctx));
+		return;
+	}
 	if (mode === "apply") {
 		if (job.status !== "PREVIEWED") {
 			await interaction.editReply(ctx.i18n.t("migration.noPreview"));
@@ -263,20 +268,37 @@ async function handleSetup(interaction: ChatInputCommandInteraction, actor: Guil
 		await interaction.editReply(ctx.i18n.t("migration.confirmed"));
 		return;
 	}
-	await interaction.editReply(
-		ctx.i18n.t("migration.status", {
-			status: localizedMigrationState(job.status, ctx.i18n),
-			processed: job.processedMembers,
-			total: job.totalMembers,
-			pending: job.pendingMembers,
-			manual: ctx.migrations.manualReviewCount(job.id),
-			failed: job.failedMembers,
-		})
-	);
+	await interaction.editReply(migrationStatusPage(job.id, actor.id, ctx));
+	startLiveMigrationStatus(interaction, job.id, actor.id, ctx);
 }
 
 async function handleButton(interaction: ButtonInteraction, ctx: InteractionContext): Promise<void> {
 	const parts = interaction.customId.split(":");
+	if (parts[0] === "migration-status" && parts.length === 3) {
+		const [, jobId, actorId] = parts;
+		if (interaction.user.id !== actorId) {
+			await interaction.reply({ content: ctx.i18n.t("permissions.denied"), flags: MessageFlags.Ephemeral });
+			return;
+		}
+		const job = ctx.migrations.getJob(jobId!);
+		if (!job) {
+			await interaction.update({ content: ctx.i18n.t("migration.noPreview"), embeds: [], components: [] });
+			return;
+		}
+		await interaction.update(migrationStatusPage(job.id, actorId!, ctx));
+		startLiveMigrationStatus(interaction, job.id, actorId!, ctx);
+		return;
+	}
+	if (parts[0] === "migration-manual" && parts.length === 4) {
+		const [, jobId, actorId, rawPage] = parts;
+		if (interaction.user.id !== actorId) {
+			await interaction.reply({ content: ctx.i18n.t("permissions.denied"), flags: MessageFlags.Ephemeral });
+			return;
+		}
+		stopLiveMigrationStatus(jobId!, actorId!);
+		await interaction.update(manualReviewPage(jobId!, actorId!, Number(rawPage), ctx));
+		return;
+	}
 	if (parts[0] === "migration-unknown" && parts.length === 4) {
 		const [, jobId, actorId, rawPage] = parts;
 		if (interaction.user.id !== actorId) {
@@ -316,10 +338,12 @@ async function handleButton(interaction: ButtonInteraction, ctx: InteractionCont
 			return;
 		}
 		const ok = ctx.migrationService.confirm(jobId!, actorId!, token!);
-		await interaction.update({
-			content: ctx.i18n.t(ok ? "migration.confirmed" : "migration.noPreview"),
-			components: [],
-		});
+		if (!ok) {
+			await interaction.update({ content: ctx.i18n.t("migration.noPreview"), embeds: [], components: [] });
+			return;
+		}
+		await interaction.update(migrationStatusPage(jobId!, actorId!, ctx));
+		startLiveMigrationStatus(interaction, jobId!, actorId!, ctx);
 		return;
 	}
 	if (parts[0] === "cancel-migration" && parts.length === 3) {
@@ -422,6 +446,78 @@ function unknownFormatPage(jobId: string, actorId: string, requestedPage: number
 	};
 }
 
+function migrationStatusPage(jobId: string, actorId: string, ctx: InteractionContext) {
+	const job = ctx.migrations.getJob(jobId);
+	if (!job) return { content: ctx.i18n.t("migration.noPreview"), embeds: [], components: [] };
+	return migrationStatusMessage(job, ctx.migrations.manualReviewItems(jobId), actorId, ctx.i18n, ctx.migrations.pendingRetryCount(jobId));
+}
+
+function manualReviewPage(jobId: string, actorId: string, requestedPage: number, ctx: InteractionContext) {
+	const job = ctx.migrations.getJob(jobId);
+	if (!job) return { content: ctx.i18n.t("migration.noPreview"), embeds: [], components: [] };
+	const items = ctx.migrations.manualReviewItems(jobId);
+	const conflicts = new Map<string, string>();
+	for (const item of items) {
+		try {
+			const metadata = JSON.parse(item.metadata) as { conflictingUserId?: unknown };
+			const fallback =
+				item.lastErrorCode === "DUPLICATE_PUUID_MANUAL_REVIEW" && item.parsedGameName && item.parsedTagLine
+					? ctx.registrations.findRegisteredByRiotId(job.guildId, `${item.parsedGameName}#${item.parsedTagLine}`, item.userId)
+					: undefined;
+			const conflictingUserId = typeof metadata.conflictingUserId === "string" ? metadata.conflictingUserId : fallback?.userId;
+			if (!conflictingUserId) continue;
+			const row = fallback?.userId === conflictingUserId ? fallback : ctx.registrations.get(job.guildId, conflictingUserId);
+			conflicts.set(conflictingUserId, row?.discordUsernameSnapshot ? `${escapeDiscordMarkdown(row.discordUsernameSnapshot)} (${conflictingUserId})` : conflictingUserId);
+			if (typeof metadata.conflictingUserId !== "string") item.metadata = JSON.stringify({ conflictingUserId });
+		} catch {
+			// Invalid historical metadata is shown without a conflict label.
+		}
+	}
+	return manualReviewMessage(job, items, actorId, requestedPage, ctx.i18n, conflicts);
+}
+
+type StatusInteraction = ChatInputCommandInteraction | ButtonInteraction;
+const liveMigrationStatusTimers = new Map<string, NodeJS.Timeout>();
+
+function startLiveMigrationStatus(interaction: StatusInteraction, jobId: string, actorId: string, ctx: InteractionContext): void {
+	stopLiveMigrationStatus(jobId, actorId);
+	const initial = ctx.migrations.getJob(jobId);
+	if (initial?.status !== "RUNNING") return;
+	const key = `${jobId}:${actorId}`;
+	const expiresAt = Date.now() + 14 * 60_000;
+	const schedule = () => {
+		const timer = setTimeout(async () => {
+			if (liveMigrationStatusTimers.get(key) !== timer) return;
+			const job = ctx.migrations.getJob(jobId);
+			if (!job) {
+				liveMigrationStatusTimers.delete(key);
+				return;
+			}
+			try {
+				await interaction.editReply(migrationStatusPage(jobId, actorId, ctx));
+			} catch {
+				liveMigrationStatusTimers.delete(key);
+				return;
+			}
+			if (job.status !== "RUNNING" || Date.now() + 30_000 >= expiresAt) {
+				liveMigrationStatusTimers.delete(key);
+				return;
+			}
+			schedule();
+		}, 30_000);
+		timer.unref();
+		liveMigrationStatusTimers.set(key, timer);
+	};
+	schedule();
+}
+
+function stopLiveMigrationStatus(jobId: string, actorId: string): void {
+	const key = `${jobId}:${actorId}`;
+	const timer = liveMigrationStatusTimers.get(key);
+	if (timer) clearTimeout(timer);
+	liveMigrationStatusTimers.delete(key);
+}
+
 function escapeDiscordMarkdown(value: string): string {
 	return value.replace(/[\r\n]+/g, " ").replace(/([\\`*_{}\[\]()#+\-.!|>~])/g, "\\$1");
 }
@@ -452,16 +548,6 @@ function localizedMigrationCategory(category: string, i18n: Localizer): string {
 		PENDING_RIOT_VERIFICATION: "migration.category.pending",
 	};
 	return keys[category] ? i18n.t(keys[category]) : i18n.t("migration.category.unknown");
-}
-function localizedMigrationState(status: string, i18n: Localizer): string {
-	const keys: Record<string, Parameters<Localizer["t"]>[0]> = {
-		PREVIEWED: "migration.state.previewed",
-		RUNNING: "migration.state.running",
-		PAUSED: "migration.state.paused",
-		COMPLETED: "migration.state.completed",
-		CANCELLED: "migration.state.cancelled",
-	};
-	return keys[status] ? i18n.t(keys[status]) : i18n.t("migration.state.paused");
 }
 function localizedSync(status: string, i18n: Localizer): string {
 	const keys: Record<string, Parameters<Localizer["t"]>[0]> = {

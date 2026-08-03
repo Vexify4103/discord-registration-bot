@@ -31,7 +31,8 @@ Siehe [Deployment](docs/deployment.md) und [Backup/Wiederherstellung](docs/backu
 
 - `/registration-setup mode:Vorschau` erstellt eine unveränderliche Vorschau und ändert noch keine Mitglieder.
 - Nach der Bestätigung mit **Migration anwenden** wird die Migration im Hintergrund verarbeitet.
-- `/registration-setup mode:Status` zeigt Fortschritt, offene Fälle, manuelle Prüfungen und Fehler.
+- `/registration-setup mode:Status` zeigt ein ephemeres Fortschritts-Embed mit Balken, Zählern und automatischer Aktualisierung alle 30 Sekunden. Die automatische Anzeige läuft bis zu 14 Minuten; der Button **Aktualisieren** startet sie erneut.
+- `/registration-setup mode:Manuelle Prüfungen` sowie der Button im Status zeigen alle betroffenen Mitglieder paginiert mit Discord-ID, ursprünglichem Nickname und lokalisiertem Prüfgrund.
 - `/registration-setup mode:Pausieren` stoppt die Verarbeitung nach dem bereits begonnenen Mitglied.
 - `/registration-setup mode:Fortsetzen` setzt eine pausierte Migration fort.
 - `/registration-setup mode:Abbrechen` beendet einen laufenden oder pausierten Job, ohne bereits verarbeitete Mitglieder zurückzusetzen. Danach kann eine neue Vorschau erstellt werden.

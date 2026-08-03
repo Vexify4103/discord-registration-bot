@@ -97,6 +97,23 @@ export class MigrationRepository {
 				.get()?.value ?? 0
 		);
 	}
+	manualReviewItems(jobId: string): MigrationItem[] {
+		return this.database.db
+			.select()
+			.from(migrationItems)
+			.where(and(eq(migrationItems.jobId, jobId), eq(migrationItems.state, "MANUAL_REVIEW")))
+			.orderBy(asc(migrationItems.sequence))
+			.all();
+	}
+	pendingRetryCount(jobId: string): number {
+		return (
+			this.database.db
+				.select({ value: count() })
+				.from(migrationItems)
+				.where(and(eq(migrationItems.jobId, jobId), eq(migrationItems.state, "PENDING_RETRY")))
+				.get()?.value ?? 0
+		);
+	}
 	next(jobId: string): MigrationItem | undefined {
 		return this.database.db
 			.select()
@@ -152,7 +169,12 @@ export class MigrationRepository {
 	resume(id: string): void {
 		this.database.db.update(migrationJobs).set({ status: "RUNNING", pauseReason: null, updatedAt: Date.now() }).where(eq(migrationJobs.id, id)).run();
 	}
-	completeItem(item: MigrationItem, outcome: "VERIFIED" | "VERIFIED_NO_RIOT" | "UNREGISTERED" | "PENDING" | "FAILED" | "SKIPPED" | "MANUAL_REVIEW", error?: string): void {
+	completeItem(
+		item: MigrationItem,
+		outcome: "VERIFIED" | "VERIFIED_NO_RIOT" | "UNREGISTERED" | "PENDING" | "FAILED" | "SKIPPED" | "MANUAL_REVIEW",
+		error?: string,
+		metadata?: Record<string, unknown>
+	): void {
 		const state = outcome === "PENDING" ? "PENDING_RETRY" : outcome;
 		this.database.sqlite.transaction(() => {
 			this.database.db
@@ -162,6 +184,7 @@ export class MigrationRepository {
 					attemptCount: item.attemptCount + 1,
 					nextAttemptAt: outcome === "PENDING" ? Date.now() + 60_000 : null,
 					lastErrorCode: error ?? null,
+					...(metadata ? { metadata: JSON.stringify(metadata) } : {}),
 					updatedAt: Date.now(),
 				})
 				.where(eq(migrationItems.id, item.id))

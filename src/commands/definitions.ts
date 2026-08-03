@@ -43,6 +43,7 @@ export function commandDefinitions(i18n: Localizer) {
 						{ name: i18n.t("command.setup.resume"), value: "resume" },
 						{ name: i18n.t("command.setup.cancel"), value: "cancel" },
 						{ name: i18n.t("command.setup.unknown"), value: "unknown" },
+						{ name: i18n.t("command.setup.manualReview"), value: "manual-review" },
 						{ name: i18n.t("command.setup.status"), value: "status" }
 					)
 			),

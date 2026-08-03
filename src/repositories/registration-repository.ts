@@ -1,4 +1,4 @@
-import { and, eq, gt, isNotNull, lt, lte, ne } from "drizzle-orm";
+import { and, eq, gt, isNotNull, lt, lte, ne, sql } from "drizzle-orm";
 import type { DatabaseContext } from "../database/client.js";
 import { auditEvents, pendingOperations, registrationAttempts, registrations, retainedRegistrationData, type Registration } from "../database/schema/index.js";
 import type { DiscordOperationType, NameVisibility, RegistrationIdentity } from "../types/domain.js";
@@ -32,7 +32,12 @@ export interface SaveVerifiedWithoutRiotInput {
 	now?: number;
 }
 
-export class DuplicatePuuidError extends Error {}
+export class DuplicatePuuidError extends Error {
+	constructor(readonly conflictingUserId: string | null = null) {
+		super("DUPLICATE_PUUID");
+		this.name = "DuplicatePuuidError";
+	}
+}
 
 export class RegistrationRepository {
 	constructor(
@@ -45,6 +50,21 @@ export class RegistrationRepository {
 			.select()
 			.from(registrations)
 			.where(and(eq(registrations.guildId, guildId), eq(registrations.userId, userId)))
+			.get();
+	}
+
+	findRegisteredByRiotId(guildId: string, riotId: string, excludingUserId?: string): Registration | undefined {
+		return this.database.db
+			.select()
+			.from(registrations)
+			.where(
+				and(
+					eq(registrations.guildId, guildId),
+					eq(registrations.status, "REGISTERED"),
+					sql`lower(${registrations.riotId}) = lower(${riotId})`,
+					...(excludingUserId ? [ne(registrations.userId, excludingUserId)] : [])
+				)
+			)
 			.get();
 	}
 
@@ -173,7 +193,7 @@ export class RegistrationRepository {
 					)
 				)
 				.get();
-			if (conflict && !input.overrideDuplicate) throw new DuplicatePuuidError("DUPLICATE_PUUID");
+			if (conflict && !input.overrideDuplicate) throw new DuplicatePuuidError(conflict.userId);
 			const existing = this.get(input.guildId, input.userId);
 			const version = (existing?.stateVersion ?? 0) + 1;
 			if (existing?.displayName && input.nameVisibility === "HIDDEN") {

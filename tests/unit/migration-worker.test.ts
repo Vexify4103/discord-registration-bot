@@ -160,7 +160,7 @@ describe("MigrationWorker", () => {
 		const registrations = {
 			setPendingMigration: vi.fn(),
 			saveRegistered: vi.fn(() => {
-				throw new DuplicatePuuidError("DUPLICATE_PUUID");
+				throw new DuplicatePuuidError("existing-owner");
 			}),
 			saveVerifiedWithoutRiot: vi.fn(),
 			upsertJoined: vi.fn(),
@@ -189,8 +189,11 @@ describe("MigrationWorker", () => {
 		await worker.tick();
 
 		expect(registrations.setPendingMigration).toHaveBeenCalledWith(job.guildId, member.id, member.user.username, member.joinedTimestamp, job.id, item.originalNickname);
-		expect(migrations.completeItem).toHaveBeenCalledWith(item, "MANUAL_REVIEW", "DUPLICATE_PUUID_MANUAL_REVIEW");
+		expect(migrations.completeItem).toHaveBeenCalledWith(item, "MANUAL_REVIEW", "DUPLICATE_PUUID_MANUAL_REVIEW", {
+			conflictingUserId: "existing-owner",
+		});
 		expect(logger.error).not.toHaveBeenCalled();
+		expect(logger.warn).not.toHaveBeenCalled();
 	});
 
 	it("does not process another member while the migration is paused", async () => {

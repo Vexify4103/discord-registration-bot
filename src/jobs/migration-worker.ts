@@ -111,8 +111,9 @@ export class MigrationWorker {
 					} catch (error) {
 						if (!(error instanceof DuplicatePuuidError)) throw error;
 						this.registrations.setPendingMigration(job.guildId, item.userId, member.user.username, member.joinedTimestamp ?? Date.now(), job.id, item.originalNickname);
-						this.migrations.completeItem(item, "MANUAL_REVIEW", "DUPLICATE_PUUID_MANUAL_REVIEW");
-						this.logger.warn({ jobId: job.id, itemId: item.id, userId: item.userId }, "Migration item has a duplicate Riot PUUID and requires manual review");
+						this.migrations.completeItem(item, "MANUAL_REVIEW", "DUPLICATE_PUUID_MANUAL_REVIEW", {
+							conflictingUserId: error.conflictingUserId,
+						});
 						return;
 					}
 					this.migrations.completeItem(item, "VERIFIED");
