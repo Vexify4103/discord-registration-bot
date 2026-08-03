@@ -27,6 +27,7 @@ describe("German localization", () => {
 		expect(mode && "choices" in mode ? mode.choices : []).toContainEqual({ name: "Abbrechen", value: "cancel" });
 		expect(mode && "choices" in mode ? mode.choices : []).toContainEqual({ name: "Unbekannte Formate", value: "unknown" });
 		expect(mode && "choices" in mode ? mode.choices : []).toContainEqual({ name: "Manuelle Prüfungen", value: "manual-review" });
+		expect(mode && "choices" in mode ? mode.choices : []).toContainEqual({ name: "Manuelle Regeln anwenden", value: "resolve-review" });
 	});
 	it("formats dates in German/Berlin", () => expect(i18n.date(new Date("2026-08-03T12:00:00Z"))).toMatch(/03\.08\.2026|03\.08\.26|3\. Aug\. 2026/));
 	it("localizes command descriptions", () =>

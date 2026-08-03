@@ -17,6 +17,7 @@ export const de: Record<MessageKey, string> = {
 	"command.setup.cancel": "Abbrechen",
 	"command.setup.unknown": "Unbekannte Formate",
 	"command.setup.manualReview": "Manuelle Prüfungen",
+	"command.setup.resolveReview": "Manuelle Regeln anwenden",
 	"command.setup.status": "Status",
 	"command.unregister.description": "Setzt ein Mitglied auf nicht registriert zurück.",
 	"command.info.description": "Zeigt den Registrierungsstatus eines Mitglieds.",
@@ -77,6 +78,10 @@ export const de: Record<MessageKey, string> = {
 	"migration.manualReasonRiotNotFound": "Das private Riot-Konto konnte nicht gefunden werden.",
 	"migration.manualReasonUnknownFormat": "Das ursprüngliche Nickname-Format konnte nicht eindeutig zugeordnet werden.",
 	"migration.manualReasonOther": "Der Fall konnte nicht automatisch entschieden werden.",
+	"migration.reviewPreviewTitle": "Manuelle Fälle erneut verarbeiten",
+	"migration.reviewPreviewBody":
+		"Diese Aktion verarbeitet {total} bisher offene Fälle erneut. Unbekannte Formate und nicht gefundene private Riot-IDs werden als nicht registriert eingestuft. Doppelte Riot-Konten übernehmen Name, Sichtbarkeit und Riot-Identität des zuerst registrierten Discord-Kontos.",
+	"migration.reviewNone": "Es gibt keine manuellen oder fehlgeschlagenen Migrationsfälle, die erneut verarbeitet werden können.",
 	"migration.pendingRiotVerification": "Die Riot-Verifizierung ist vorübergehend ausstehend. Das Mitglied wird nicht automatisch entfernt.",
 	"migration.unknownTitle": "Mitglieder mit unbekanntem Nickname-Format",
 	"migration.unknownPage": "Seite {page}/{pages} · Insgesamt {total} Mitglieder",

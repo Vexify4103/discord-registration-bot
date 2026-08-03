@@ -1,4 +1,4 @@
-import { and, eq, gt, isNotNull, lt, lte, ne, sql } from "drizzle-orm";
+import { and, asc, eq, gt, isNotNull, lt, lte, ne, sql } from "drizzle-orm";
 import type { DatabaseContext } from "../database/client.js";
 import { auditEvents, pendingOperations, registrationAttempts, registrations, retainedRegistrationData, type Registration } from "../database/schema/index.js";
 import type { DiscordOperationType, NameVisibility, RegistrationIdentity } from "../types/domain.js";
@@ -65,6 +65,7 @@ export class RegistrationRepository {
 					...(excludingUserId ? [ne(registrations.userId, excludingUserId)] : [])
 				)
 			)
+			.orderBy(asc(registrations.duplicatePuuidOverride), asc(registrations.registeredAt), asc(registrations.userId))
 			.get();
 	}
 
@@ -192,6 +193,7 @@ export class RegistrationRepository {
 						ne(registrations.userId, input.userId)
 					)
 				)
+				.orderBy(asc(registrations.duplicatePuuidOverride), asc(registrations.registeredAt), asc(registrations.userId))
 				.get();
 			if (conflict && !input.overrideDuplicate) throw new DuplicatePuuidError(conflict.userId);
 			const existing = this.get(input.guildId, input.userId);

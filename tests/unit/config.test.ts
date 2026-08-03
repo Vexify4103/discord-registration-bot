@@ -20,3 +20,7 @@ describe("cleanup configuration", () => {
 			}).CLEANUP_ENABLED
 		).toBe(true));
 });
+
+describe("migration policy configuration", () => {
+	it("treats unknown nickname formats as unregistered by default", () => expect(configSchema.parse(requiredEnvironment).UNKNOWN_MEMBER_MIGRATION_POLICY).toBe("unregister"));
+});

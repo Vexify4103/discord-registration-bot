@@ -55,6 +55,46 @@ export class MigrationService {
 		return { jobId: job.id, token, total: items.length, counts, examples };
 	}
 
+	async previewManualResolution(guild: Guild, actorId: string): Promise<MigrationPreviewSummary | null> {
+		const sourceJob = this.migrations.latestReviewable(guild.id);
+		if (!sourceJob) return null;
+		const candidates = this.migrations.reviewCandidates(sourceJob.id);
+		const members = await guild.members.fetch();
+		const items = candidates
+			.map((candidate) => members.get(candidate.userId))
+			.filter((member): member is GuildMember => Boolean(member && !member.user.bot))
+			.map((member) => this.previewMember(member));
+		if (!items.length) return null;
+		const fingerprint = digest(items.map((item) => item.fingerprint).join("|"));
+		const snapshot = JSON.stringify({
+			namedRoleId: this.config.VERIFIED_NAMED_ROLE_ID,
+			privateRoleId: this.config.VERIFIED_PRIVATE_ROLE_ID,
+			unregisteredRoleId: this.config.UNREGISTERED_ROLE_ID,
+			unknownPolicy: this.config.UNKNOWN_MEMBER_MIGRATION_POLICY,
+			routes: this.config.LEGACY_RIOT_ACCOUNT_ROUTES,
+			reviewSourceJobId: sourceJob.id,
+		});
+		const job = this.migrations.createPreview(guild.id, actorId, snapshot, fingerprint, items);
+		for (const item of items)
+			this.audits.create({
+				guildId: guild.id,
+				targetUserId: item.userId,
+				actorUserId: actorId,
+				action: "MIGRATION_REVIEW_CLASSIFICATION",
+				result: item.parsed.category,
+				metadata: { migrationJobId: job.id, sourceJobId: sourceJob.id },
+			});
+		const token = this.createConfirmation(job.id);
+		const counts: Record<string, number> = {};
+		const examples: Record<string, string[]> = {};
+		for (const item of items) {
+			counts[item.parsed.category] = (counts[item.parsed.category] ?? 0) + 1;
+			examples[item.parsed.category] ??= [];
+			if (examples[item.parsed.category]!.length < 3) examples[item.parsed.category]!.push(maskExample(item.nickname, item.userId));
+		}
+		return { jobId: job.id, token, total: items.length, counts, examples };
+	}
+
 	createConfirmation(jobId: string): string {
 		const token = randomBytes(8).toString("hex");
 		this.migrations.setConfirmation(jobId, digest(token), Date.now() + 10 * 60_000);
@@ -68,7 +108,20 @@ export class MigrationService {
 		const active = this.migrations.active(job.guildId);
 		if (active && active.id !== job.id) return false;
 		if (digest(token) !== job.confirmationHash) return false;
-		this.migrations.start(jobId);
+		let reviewSourceJobId: string | undefined;
+		try {
+			const snapshot = JSON.parse(job.configurationSnapshot) as { reviewSourceJobId?: unknown };
+			if (typeof snapshot.reviewSourceJobId === "string") reviewSourceJobId = snapshot.reviewSourceJobId;
+		} catch {
+			// Older migration snapshots do not contain review metadata.
+		}
+		if (reviewSourceJobId)
+			this.migrations.startReview(
+				jobId,
+				reviewSourceJobId,
+				this.migrations.items(jobId).map((item) => item.userId)
+			);
+		else this.migrations.start(jobId);
 		return true;
 	}
 

@@ -36,7 +36,7 @@ export const configSchema = z
 		CLEANUP_ENABLED: bool(false),
 		REGISTRATION_DATA_RETENTION_DAYS: integer(30, 0),
 		MIGRATION_GRACE_PERIOD_DAYS: integer(7, 1),
-		UNKNOWN_MEMBER_MIGRATION_POLICY: z.enum(["unregister", "skip", "require-manual-review"]).default("require-manual-review"),
+		UNKNOWN_MEMBER_MIGRATION_POLICY: z.enum(["unregister", "skip", "require-manual-review"]).default("unregister"),
 		LEGACY_ALLOW_WHITESPACE_VARIATIONS: bool(false),
 		DEFAULT_RIOT_PLATFORM_REGION: z.enum(["EUW1", "EUN1", "TR1", "RU", "NA1", "BR1", "LA1", "LA2", "OC1", "KR", "JP1", "SG2", "PH2", "TW2", "TH2", "VN2"]).default("EUW1"),
 		DEFAULT_RIOT_ACCOUNT_ROUTE: z.enum(["americas", "asia", "europe", "sea"]).default("europe"),

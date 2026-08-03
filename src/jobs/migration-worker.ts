@@ -110,10 +110,52 @@ export class MigrationWorker {
 						});
 					} catch (error) {
 						if (!(error instanceof DuplicatePuuidError)) throw error;
-						this.registrations.setPendingMigration(job.guildId, item.userId, member.user.username, member.joinedTimestamp ?? Date.now(), job.id, item.originalNickname);
-						this.migrations.completeItem(item, "MANUAL_REVIEW", "DUPLICATE_PUUID_MANUAL_REVIEW", {
-							conflictingUserId: error.conflictingUserId,
+						const source = error.conflictingUserId ? this.registrations.get(job.guildId, error.conflictingUserId) : undefined;
+						if (
+							source?.status !== "REGISTERED" ||
+							!source.nameVisibility ||
+							!source.puuid ||
+							!source.gameName ||
+							!source.tagLine ||
+							!source.riotId ||
+							!source.platformRegion ||
+							!source.accountRoutingGroup ||
+							!source.opggUrl
+						) {
+							this.registrations.setPendingMigration(
+								job.guildId,
+								item.userId,
+								member.user.username,
+								member.joinedTimestamp ?? Date.now(),
+								job.id,
+								item.originalNickname
+							);
+							this.migrations.completeItem(item, "MANUAL_REVIEW", "DUPLICATE_PUUID_OWNER_INVALID", {
+								conflictingUserId: error.conflictingUserId,
+							});
+							return;
+						}
+						this.registrations.saveRegistered({
+							guildId: job.guildId,
+							userId: item.userId,
+							actorUserId: job.startedBy,
+							discordUsername: member.user.username,
+							displayName: source.nameVisibility === "VISIBLE" ? source.displayName : null,
+							nameVisibility: source.nameVisibility,
+							identity: {
+								puuid: source.puuid,
+								gameName: source.gameName,
+								tagLine: source.tagLine,
+								riotId: source.riotId,
+								platformRegion: source.platformRegion,
+								accountRoutingGroup: source.accountRoutingGroup,
+								opggUrl: source.opggUrl,
+							},
+							overrideDuplicate: true,
+							overrideAuthorized: true,
+							priority: 50,
 						});
+						this.migrations.completeItem(item, "VERIFIED");
 						return;
 					}
 					this.migrations.completeItem(item, "VERIFIED");
@@ -143,8 +185,8 @@ export class MigrationWorker {
 				this.migrations.completeItem(item, "VERIFIED_NO_RIOT", "RIOT_NOT_FOUND");
 				return;
 			}
-			this.registrations.setPendingMigration(job.guildId, item.userId, member.user.username, member.joinedTimestamp ?? Date.now(), job.id, item.originalNickname);
-			this.migrations.completeItem(item, "MANUAL_REVIEW", "RIOT_NOT_FOUND_MANUAL_REVIEW");
+			this.applyUnregistered(member.id, member.user.username, member.joinedTimestamp ?? Date.now(), job.id, item.originalNickname, job.startedBy);
+			this.migrations.completeItem(item, "UNREGISTERED", "RIOT_NOT_FOUND_UNREGISTERED");
 		} catch (error) {
 			this.logger.error({ err: error, jobId: job.id }, "Migration worker failed");
 		} finally {

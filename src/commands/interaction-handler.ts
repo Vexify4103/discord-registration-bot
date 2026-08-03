@@ -191,7 +191,7 @@ async function registrationReply(interaction: ChatInputCommandInteraction, resul
 
 async function handleSetup(interaction: ChatInputCommandInteraction, actor: GuildMember, ctx: InteractionContext): Promise<void> {
 	const mode = interaction.options.getString("mode", true);
-	if (["apply", "pause", "resume", "cancel"].includes(mode) && !ctx.permissions.isAdministrator(actor)) {
+	if (["apply", "pause", "resume", "cancel", "resolve-review"].includes(mode) && !ctx.permissions.isAdministrator(actor)) {
 		await interaction.editReply(ctx.i18n.t("permissions.denied"));
 		return;
 	}
@@ -208,6 +208,25 @@ async function handleSetup(interaction: ChatInputCommandInteraction, actor: Guil
 		await interaction.editReply({
 			content: `**${ctx.i18n.t("migration.previewTitle")}**\n${ctx.i18n.t("migration.previewBody", { total: summary.total })}\n\n${counts}`.slice(0, 1900),
 			components: [row],
+		});
+		return;
+	}
+	if (mode === "resolve-review") {
+		if (ctx.migrations.active(interaction.guildId!)) {
+			await interaction.editReply(ctx.i18n.t("migration.activeExists"));
+			return;
+		}
+		const summary = await ctx.migrationService.previewManualResolution(interaction.guild!, actor.id);
+		if (!summary) {
+			await interaction.editReply(ctx.i18n.t("migration.reviewNone"));
+			return;
+		}
+		const counts = Object.entries(summary.counts)
+			.map(([key, count]) => `${localizedMigrationCategory(key, ctx.i18n)}: ${count}`)
+			.join("\n");
+		await interaction.editReply({
+			content: `**${ctx.i18n.t("migration.reviewPreviewTitle")}**\n${ctx.i18n.t("migration.reviewPreviewBody", { total: summary.total })}\n\n${counts}`.slice(0, 1900),
+			components: [migrationButtons(summary.jobId, actor.id, summary.token, ctx.i18n)],
 		});
 		return;
 	}

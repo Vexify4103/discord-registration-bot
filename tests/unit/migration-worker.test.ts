@@ -71,7 +71,7 @@ describe("MigrationWorker", () => {
 		expect(registrations.saveRegistered).not.toHaveBeenCalled();
 	});
 
-	it("keeps a hidden-name member in manual review when the old Riot ID is not found", async () => {
+	it("marks a hidden-name member unregistered when the old Riot ID is not found", async () => {
 		const member = {
 			id: "user-2",
 			user: { username: "HiddenDiscordName" },
@@ -125,13 +125,14 @@ describe("MigrationWorker", () => {
 
 		await worker.tick();
 
-		expect(registrations.setPendingMigration).toHaveBeenCalledWith(job.guildId, member.id, member.user.username, member.joinedTimestamp, job.id, item.originalNickname);
-		expect(migrations.completeItem).toHaveBeenCalledWith(item, "MANUAL_REVIEW", "RIOT_NOT_FOUND_MANUAL_REVIEW");
+		expect(registrations.upsertJoined).toHaveBeenCalledWith(job.guildId, member.id, member.user.username, member.joinedTimestamp);
+		expect(registrations.unregister).toHaveBeenCalledWith(job.guildId, member.id, job.startedBy, expect.any(Number));
+		expect(migrations.completeItem).toHaveBeenCalledWith(item, "UNREGISTERED", "RIOT_NOT_FOUND_UNREGISTERED");
 		expect(registrations.saveVerifiedWithoutRiot).not.toHaveBeenCalled();
-		expect(registrations.unregister).not.toHaveBeenCalled();
+		expect(registrations.setPendingMigration).not.toHaveBeenCalled();
 	});
 
-	it("moves a duplicate Riot PUUID to manual review and continues the migration", async () => {
+	it("clones the first registration for a duplicate Riot PUUID", async () => {
 		const member = {
 			id: "user-duplicate",
 			user: { username: "DuplicateDiscordName" },
@@ -145,10 +146,10 @@ describe("MigrationWorker", () => {
 			guildId: job.guildId,
 			userId: member.id,
 			category: "LEGACY_REGISTERED_VISIBLE_NAME",
-			parsedDisplayName: "Martin",
-			parsedGameName: "SharedRiotName",
+			parsedDisplayName: "Laster",
+			parsedGameName: "Hebi Shinobi",
 			parsedTagLine: "EUW",
-			originalNickname: "Martin | SharedRiotName#EUW",
+			originalNickname: "Laster | Hebi Shinobi#EUW",
 			snapshotFingerprint: memberFingerprint(member as never),
 		};
 		const migrations = {
@@ -159,7 +160,19 @@ describe("MigrationWorker", () => {
 		};
 		const registrations = {
 			setPendingMigration: vi.fn(),
-			saveRegistered: vi.fn(() => {
+			get: vi.fn().mockReturnValue({
+				status: "REGISTERED",
+				displayName: "Lukas",
+				nameVisibility: "VISIBLE",
+				puuid: "shared-puuid",
+				gameName: "Hebi Shinobi",
+				tagLine: "EUW",
+				riotId: "Hebi Shinobi#EUW",
+				platformRegion: "EUW1",
+				accountRoutingGroup: "europe",
+				opggUrl: "https://www.op.gg/lol/summoners/euw/Hebi%20Shinobi-EUW",
+			}),
+			saveRegistered: vi.fn().mockImplementationOnce(() => {
 				throw new DuplicatePuuidError("existing-owner");
 			}),
 			saveVerifiedWithoutRiot: vi.fn(),
@@ -181,17 +194,24 @@ describe("MigrationWorker", () => {
 			} as AppConfig,
 			migrations as never,
 			registrations as never,
-			{ byRiotId: vi.fn().mockResolvedValue({ kind: "success", account: { puuid: "shared-puuid", gameName: "SharedRiotName", tagLine: "EUW" } }) } as never,
+			{ byRiotId: vi.fn().mockResolvedValue({ kind: "success", account: { puuid: "shared-puuid", gameName: "Hebi Shinobi", tagLine: "EUW" } }) } as never,
 			{ acquire: vi.fn().mockReturnValue(true), release: vi.fn() } as never,
 			logger as never
 		);
 
 		await worker.tick();
 
-		expect(registrations.setPendingMigration).toHaveBeenCalledWith(job.guildId, member.id, member.user.username, member.joinedTimestamp, job.id, item.originalNickname);
-		expect(migrations.completeItem).toHaveBeenCalledWith(item, "MANUAL_REVIEW", "DUPLICATE_PUUID_MANUAL_REVIEW", {
-			conflictingUserId: "existing-owner",
-		});
+		expect(registrations.saveRegistered).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				displayName: "Lukas",
+				nameVisibility: "VISIBLE",
+				overrideDuplicate: true,
+				overrideAuthorized: true,
+				identity: expect.objectContaining({ puuid: "shared-puuid", riotId: "Hebi Shinobi#EUW" }),
+			})
+		);
+		expect(registrations.setPendingMigration).not.toHaveBeenCalled();
+		expect(migrations.completeItem).toHaveBeenCalledWith(item, "VERIFIED");
 		expect(logger.error).not.toHaveBeenCalled();
 		expect(logger.warn).not.toHaveBeenCalled();
 	});

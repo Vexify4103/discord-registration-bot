@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, lte, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, lte, or } from "drizzle-orm";
 import type { DatabaseContext } from "../database/client.js";
 import { migrationItems, migrationJobs, type MigrationItem, type MigrationJob } from "../database/schema/index.js";
 import type { LegacyParseResult } from "../parsers/legacy-nickname-parser.js";
@@ -69,6 +69,10 @@ export class MigrationRepository {
 	latest(guildId: string): MigrationJob | undefined {
 		return this.database.db.select().from(migrationJobs).where(eq(migrationJobs.guildId, guildId)).orderBy(asc(migrationJobs.startedAt)).all().at(-1);
 	}
+	latestReviewable(guildId: string): MigrationJob | undefined {
+		const jobs = this.database.db.select().from(migrationJobs).where(eq(migrationJobs.guildId, guildId)).orderBy(desc(migrationJobs.startedAt)).all();
+		return jobs.find((job) => this.reviewCandidates(job.id).length > 0);
+	}
 	active(guildId: string): MigrationJob | undefined {
 		return this.database.db
 			.select()
@@ -105,6 +109,22 @@ export class MigrationRepository {
 			.orderBy(asc(migrationItems.sequence))
 			.all();
 	}
+	reviewCandidates(jobId: string): MigrationItem[] {
+		return this.database.db
+			.select()
+			.from(migrationItems)
+			.where(and(eq(migrationItems.jobId, jobId), or(eq(migrationItems.state, "MANUAL_REVIEW"), eq(migrationItems.state, "FAILED"))))
+			.orderBy(asc(migrationItems.sequence))
+			.all();
+	}
+	markReviewCandidatesRequeued(jobId: string, userIds: string[], now = Date.now()): void {
+		if (!userIds.length) return;
+		this.database.db
+			.update(migrationItems)
+			.set({ state: "REQUEUED_FOR_REVIEW", updatedAt: now })
+			.where(and(eq(migrationItems.jobId, jobId), inArray(migrationItems.userId, userIds), or(eq(migrationItems.state, "MANUAL_REVIEW"), eq(migrationItems.state, "FAILED"))))
+			.run();
+	}
 	pendingRetryCount(jobId: string): number {
 		return (
 			this.database.db
@@ -139,6 +159,16 @@ export class MigrationRepository {
 			.run();
 	}
 	start(id: string): void {
+		this.startJob(id, Date.now());
+	}
+	startReview(id: string, sourceJobId: string, userIds: string[]): void {
+		const now = Date.now();
+		this.database.sqlite.transaction(() => {
+			this.startJob(id, now);
+			this.markReviewCandidatesRequeued(sourceJobId, userIds, now);
+		})();
+	}
+	private startJob(id: string, now: number): void {
 		this.database.db
 			.update(migrationJobs)
 			.set({
@@ -146,7 +176,7 @@ export class MigrationRepository {
 				mode: "apply",
 				confirmationHash: null,
 				confirmationExpiresAt: null,
-				updatedAt: Date.now(),
+				updatedAt: now,
 			})
 			.where(eq(migrationJobs.id, id))
 			.run();
