@@ -69,6 +69,31 @@ describe("RegistrationRepository", () => {
 		expect(repository.dueCleanup(Date.now())).toEqual([]);
 		expect(context.sqlite.prepare("select count(*) count from pending_operations").get()).toMatchObject({ count: 1 });
 	});
+	it("atomically applies an administrative verified-without-Riot nickname update", () => {
+		repository.upsertJoined("1", "2", "discord", 1);
+		const row = repository.saveVerifiedWithoutRiot({
+			guildId: "1",
+			userId: "2",
+			actorUserId: "9",
+			discordUsername: "discord",
+			displayName: "Martin",
+			reason: "ADMIN_NICKNAME",
+			now: 10,
+		});
+		expect(row).toMatchObject({
+			status: "VERIFIED_NO_RIOT",
+			displayName: "Martin",
+			migrationSource: null,
+			migrationJobId: null,
+		});
+		expect(context.sqlite.prepare("select count(*) count from pending_operations").get()).toMatchObject({ count: 1 });
+		const audit = context.sqlite.prepare("select action, metadata from audit_events where target_user_id='2' order by created_at desc limit 1").get() as {
+			action: string;
+			metadata: string;
+		};
+		expect(audit.action).toBe("ADMIN_NICKNAME_VERIFIED_WITHOUT_RIOT");
+		expect(audit.metadata).not.toContain("Martin");
+	});
 	it("rejects contradictory visibility/name combinations", () => {
 		repository.upsertJoined("1", "2", "discord", 1);
 		expect(() =>

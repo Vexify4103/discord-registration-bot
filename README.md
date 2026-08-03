@@ -13,11 +13,13 @@ Ein einzelner TypeScript/discord.js-Prozess verwaltet Registrierungen, Riot-Iden
 5. `npm test && npm run build`
 6. `npm run dev`
 
-Im Discord Developer Portal muss unter **Bot → Privileged Gateway Intents** der **Server Members Intent** aktiviert werden. Der Bot benötigt View Channels, Send Messages, Use Application Commands, Manage Nicknames, Manage Roles und Kick Members, aber keine Administratorberechtigung.
+Im Discord Developer Portal muss unter **Bot → Privileged Gateway Intents** der **Server Members Intent** aktiviert werden. Der Bot benötigt View Channels, Send Messages, Use Application Commands, Manage Nicknames, Manage Roles, Kick Members und **View Audit Log**, aber keine Administratorberechtigung.
 
 Die Rollen werden nicht automatisch verändert. Die erwartete Reihenfolge ist Bot, Staff, Verifiziert, Verifiziert | Privat, Unregistriert, @everyone. Beide verifizierten Rollen müssen separat angezeigt werden; Unregistriert darf nicht separat angezeigt werden.
 
 Sichtbare Registrierungen verwenden `Name | RiotID#Tag`. Private Registrierungen verwenden `? | RiotID#Tag`; für sie bleibt `displayName=null`, sodass das Fragezeichen nur ein sichtbarer Platzhalter und kein gespeicherter Personenname ist.
+
+Ändert ein berechtigtes Staff-Mitglied den Server-Nickname manuell auf `Name | RiotID#Tag`, `? | RiotID#Tag` oder `Name | ?#?`, übernimmt der Bot die Änderung automatisch in die Datenbank und gleicht die Registrierungsrollen ab. Der Bearbeiter wird sicher über das Discord-Audit-Log bestimmt. Änderungen des Bots selbst oder nicht berechtigter Mitglieder werden nicht als Registrierungsdaten übernommen. Doppelte Riot-Konten benötigen weiterhin eine ausdrückliche administrative Freigabe über `/register-user`.
 
 Automatische Entfernungen nicht registrierter Mitglieder sind standardmäßig deaktiviert. Nur `CLEANUP_ENABLED=true` aktiviert den Kick-Worker; `REGISTRATION_EXPIRY_DAYS` legt dann die Frist fest.
 

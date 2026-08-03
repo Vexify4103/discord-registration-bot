@@ -7,6 +7,7 @@ import type { AppConfig } from "./config/schema.js";
 import { assertDatabaseHealthy, createDatabase, type DatabaseContext } from "./database/client.js";
 import { createGuildMemberAddHandler } from "./events/guild-member-add.js";
 import { createGuildMemberRemoveHandler } from "./events/guild-member-remove.js";
+import { createGuildMemberUpdateHandler } from "./events/guild-member-update.js";
 import { CleanupWorker } from "./jobs/cleanup-worker.js";
 import { DiscordOperationWorker } from "./jobs/discord-operation-worker.js";
 import { MigrationWorker } from "./jobs/migration-worker.js";
@@ -17,6 +18,7 @@ import { MemberReconciliationService } from "./integrations/discord/member-recon
 import { RiotAccountService } from "./integrations/riot/riot-account-service.js";
 import { Localizer } from "./localization/formatter.js";
 import { LegacyNicknameParser } from "./parsers/legacy-nickname-parser.js";
+import { AdministrativeNicknameParser } from "./parsers/administrative-nickname-parser.js";
 import { OpggParser } from "./parsers/opgg-parser.js";
 import { DiscordMemberMutationQueue } from "./queues/discord-member-mutation-queue.js";
 import { RiotRequestQueue } from "./queues/riot-request-queue.js";
@@ -30,6 +32,7 @@ import { MigrationService } from "./services/migration-service.js";
 import { NicknameService } from "./services/nickname-service.js";
 import { PermissionService } from "./services/permission-service.js";
 import { RegistrationService } from "./services/registration-service.js";
+import { AdministrativeNicknameService } from "./services/administrative-nickname-service.js";
 
 export class BotApplication {
 	private readonly database: DatabaseContext;
@@ -72,6 +75,8 @@ export class BotApplication {
 		this.riotQueue = new RiotRequestQueue(config.RIOT_SYNC_MIN_DELAY_MS);
 		const riot = new RiotAccountService(config.RIOT_API_KEY, this.riotQueue, config.RIOT_SYNC_MAX_RETRIES, logger);
 		const registrationService = new RegistrationService(registrations, new OpggParser(), riot, logger);
+		const administrativeNicknameParser = new AdministrativeNicknameParser();
+		const administrativeNicknameService = new AdministrativeNicknameService(config, registrations, riot, logger);
 		const migrationService = new MigrationService(config, new LegacyNicknameParser(config.LEGACY_ALLOW_WHITESPACE_VARIATIONS), migrations, permissions, audits);
 		const riotSync = new RiotSyncWorker(config, registrations, riot, leases, logger);
 		this.workers = [
@@ -97,6 +102,10 @@ export class BotApplication {
 		this.client.on(Events.InteractionCreate, (interaction) => void handleInteraction(interaction, interactionContext));
 		this.client.on(Events.GuildMemberAdd, createGuildMemberAddHandler(registrations, reconciliation, audits, logger));
 		this.client.on(Events.GuildMemberRemove, createGuildMemberRemoveHandler(registrations, audits, logger));
+		this.client.on(
+			Events.GuildMemberUpdate,
+			createGuildMemberUpdateHandler(config, administrativeNicknameParser, nicknames, administrativeNicknameService, registrations, permissions, audits, logger)
+		);
 	}
 
 	async start(): Promise<void> {

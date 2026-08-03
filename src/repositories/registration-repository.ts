@@ -25,9 +25,9 @@ export interface SaveVerifiedWithoutRiotInput {
 	actorUserId: string;
 	discordUsername: string;
 	displayName: string;
-	migrationJobId: string;
-	originalNickname: string | null;
-	reason: "LEGACY_NO_RIOT" | "RIOT_NOT_FOUND";
+	migrationJobId?: string;
+	originalNickname?: string | null;
+	reason: "LEGACY_NO_RIOT" | "RIOT_NOT_FOUND" | "ADMIN_NICKNAME" | "ADMIN_RIOT_NOT_FOUND";
 	priority?: number;
 	now?: number;
 }
@@ -273,7 +273,10 @@ export class RegistrationRepository {
 		const now = input.now ?? Date.now();
 		return this.database.sqlite.transaction(() => {
 			const existing = this.get(input.guildId, input.userId);
+			if (!input.migrationJobId && existing?.status === "REGISTERED") this.retainIdentity(existing, "ADMIN_NICKNAME_VERIFIED_NO_RIOT", now);
 			const version = (existing?.stateVersion ?? 0) + 1;
+			const migrationSource = input.migrationJobId ? "LEGACY_NICKNAME" : null;
+			const riotNotFound = input.reason === "RIOT_NOT_FOUND" || input.reason === "ADMIN_RIOT_NOT_FOUND";
 			this.database.db
 				.insert(registrations)
 				.values({
@@ -290,12 +293,12 @@ export class RegistrationRepository {
 					riotSyncStatus: "NOT_REQUIRED",
 					nicknameSyncStatus: "PENDING",
 					roleSyncStatus: "PENDING",
-					migrationSource: "LEGACY_NICKNAME",
-					originalMigrationNickname: input.originalNickname,
-					migrationJobId: input.migrationJobId,
+					migrationSource,
+					originalMigrationNickname: input.originalNickname ?? null,
+					migrationJobId: input.migrationJobId ?? null,
 					stateVersion: version,
-					lastFailureCode: input.reason === "RIOT_NOT_FOUND" ? "RIOT_ID_OUTDATED" : null,
-					lastFailureAt: input.reason === "RIOT_NOT_FOUND" ? now : null,
+					lastFailureCode: riotNotFound ? "RIOT_ID_OUTDATED" : null,
+					lastFailureAt: riotNotFound ? now : null,
 					createdAt: existing?.createdAt ?? now,
 					updatedAt: now,
 				})
@@ -325,21 +328,29 @@ export class RegistrationRepository {
 						lastRiotSyncErrorCode: null,
 						nicknameSyncStatus: "PENDING",
 						roleSyncStatus: "PENDING",
-						migrationSource: "LEGACY_NICKNAME",
-						originalMigrationNickname: input.originalNickname,
-						migrationJobId: input.migrationJobId,
+						migrationSource,
+						originalMigrationNickname: input.originalNickname ?? null,
+						migrationJobId: input.migrationJobId ?? null,
 						stateVersion: version,
 						duplicatePuuidOverride: false,
 						duplicateOverrideActorId: null,
 						duplicateOverrideAt: null,
-						lastFailureCode: input.reason === "RIOT_NOT_FOUND" ? "RIOT_ID_OUTDATED" : null,
-						lastFailureAt: input.reason === "RIOT_NOT_FOUND" ? now : null,
+						lastFailureCode: riotNotFound ? "RIOT_ID_OUTDATED" : null,
+						lastFailureAt: riotNotFound ? now : null,
 						updatedAt: now,
 					},
 				})
 				.run();
 			this.enqueueReconcile(input.guildId, input.userId, version, input.priority ?? operationPriorities.MIGRATION, now);
-			this.audit(input.guildId, input.userId, input.actorUserId, "MIGRATION_VERIFIED_WITHOUT_RIOT", "SUCCESS", { reason: input.reason }, now);
+			this.audit(
+				input.guildId,
+				input.userId,
+				input.actorUserId,
+				input.migrationJobId ? "MIGRATION_VERIFIED_WITHOUT_RIOT" : "ADMIN_NICKNAME_VERIFIED_WITHOUT_RIOT",
+				"SUCCESS",
+				{ reason: input.reason },
+				now
+			);
 			return this.get(input.guildId, input.userId)!;
 		})();
 	}
@@ -593,6 +604,13 @@ export class RegistrationRepository {
 			.set({ ...fields, updatedAt: Date.now() })
 			.where(and(eq(registrations.guildId, guildId), eq(registrations.userId, userId)))
 			.run();
+	}
+
+	requestReconciliation(guildId: string, userId: string, priority = operationPriorities.REPAIR, now = Date.now()): boolean {
+		const row = this.get(guildId, userId);
+		if (!row) return false;
+		this.enqueueReconcile(guildId, userId, row.stateVersion, priority, now);
+		return true;
 	}
 
 	private enqueueReconcile(guildId: string, userId: string, stateVersion: number, priority: number, now: number): void {

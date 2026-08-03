@@ -30,6 +30,7 @@ export async function diagnoseGuild(client: Client, guild: Guild, config: AppCon
 		PermissionFlagsBits.KickMembers,
 	];
 	if (!me.permissions.has(required)) errors.push(i18n.t("permissions.denied"));
+	if (!me.permissions.has(PermissionFlagsBits.ViewAuditLog)) errors.push(i18n.t("permissions.missingViewAuditLog"));
 	if (named && privateRole && unregistered) {
 		if (me.roles.highest.comparePositionTo(named) <= 0 || me.roles.highest.comparePositionTo(privateRole) <= 0 || me.roles.highest.comparePositionTo(unregistered) <= 0)
 			errors.push(

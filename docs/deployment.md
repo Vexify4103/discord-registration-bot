@@ -11,4 +11,6 @@ Unterstützt werden Raspberry Pi 4/5 mit 64-Bit Raspberry Pi OS, Node.js 24 LTS 
 7. Die mitgelieferte systemd-Unit installieren, `systemctl daemon-reload`, `enable` und `start` ausführen.
 8. `journalctl -u discord-registration-bot` auf deutsche Konfigurationsdiagnosen prüfen.
 
+Die Bot-Rolle benötigt zusätzlich **Audit-Log anzeigen**, damit manuelle Nickname-Änderungen ausschließlich dann als Registrierungsänderung übernommen werden, wenn Discord sie einem berechtigten Staff-Mitglied zuordnet.
+
 Updates erfolgen nur bei gestopptem Dienst nach einem verifizierten Backup. Bei Fehlern wird der vorherige Release-Symlink reaktiviert; bei inkompatibler Migration wird zusätzlich das unmittelbar vorher erstellte Backup wiederhergestellt.

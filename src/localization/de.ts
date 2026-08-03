@@ -69,6 +69,7 @@ export const de: Record<MessageKey, string> = {
 	"permissions.roleMentionable": "Die Erwähnbarkeit der Rolle „{role}“ entspricht nicht der Konfiguration.",
 	"permissions.roleAdministrator": "Die Rolle „{role}“ darf keine Administratorberechtigung besitzen.",
 	"permissions.intentMissing": "Der privilegierte „Server Members Intent“ ist nicht aktiviert.",
+	"permissions.missingViewAuditLog": "Dem Bot fehlt die Berechtigung „Audit-Log anzeigen“, die für sichere administrative Nickname-Änderungen benötigt wird.",
 	"common.unexpectedError": "Es ist ein unerwarteter Fehler aufgetreten. Bitte versuche es später erneut.",
 	"common.riotTemporarilyUnavailable": "Riot ist vorübergehend nicht erreichbar. Deine bestehende Registrierung bleibt unverändert.",
 	"common.syncSucceeded": "Rollen und Nickname wurden erfolgreich abgeglichen.",

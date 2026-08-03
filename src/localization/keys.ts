@@ -65,6 +65,7 @@ export const messageKeys = [
 	"permissions.roleMentionable",
 	"permissions.roleAdministrator",
 	"permissions.intentMissing",
+	"permissions.missingViewAuditLog",
 	"common.unexpectedError",
 	"common.riotTemporarilyUnavailable",
 	"common.syncSucceeded",
