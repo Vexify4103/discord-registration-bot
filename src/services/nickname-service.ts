@@ -25,6 +25,14 @@ export class NicknameService {
 		return this.riotIdOnly(input.gameName, input.tagLine);
 	}
 
+	verifiedWithoutRiot(displayName: string): string {
+		const name = displayName.trim();
+		if (!name) throw new Error("VERIFIED_NO_RIOT_REQUIRES_NAME");
+		const suffix = " | ?#?";
+		const available = MAX_NICKNAME_LENGTH - this.length(suffix);
+		return `${this.truncate(name, available)}${suffix}`;
+	}
+
 	unregistered(username: string): string {
 		const fixed = this.unregisteredTemplate.replace("{username}", "");
 		const available = MAX_NICKNAME_LENGTH - this.length(fixed);

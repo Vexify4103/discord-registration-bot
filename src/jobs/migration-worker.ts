@@ -30,8 +30,8 @@ export class MigrationWorker {
 
 	async tick(): Promise<void> {
 		if (this.running) return;
-		const job = this.migrations.latest(this.config.DISCORD_GUILD_ID);
-		if (!job || job.status !== "RUNNING") return;
+		const job = this.migrations.running(this.config.DISCORD_GUILD_ID);
+		if (!job) return;
 		if (!this.leases.acquire("migration", 60_000)) return;
 		this.running = true;
 		try {
@@ -65,6 +65,15 @@ export class MigrationWorker {
 				}
 				this.applyUnregistered(member.id, member.user.username, member.joinedTimestamp ?? Date.now(), job.id, item.originalNickname, job.startedBy);
 				this.migrations.completeItem(item, "UNREGISTERED");
+				return;
+			}
+			if (item.category === "LEGACY_VERIFIED_NO_RIOT") {
+				if (!item.parsedDisplayName) {
+					this.migrations.completeItem(item, "FAILED", "INVALID_PARSED_DISPLAY_NAME");
+					return;
+				}
+				this.applyVerifiedWithoutRiot(item, member.user.username, member.joinedTimestamp ?? Date.now(), job.startedBy, "LEGACY_NO_RIOT");
+				this.migrations.completeItem(item, "VERIFIED_NO_RIOT");
 				return;
 			}
 			if (item.category === "LEGACY_UNREGISTERED") {
@@ -120,6 +129,11 @@ export class MigrationWorker {
 				this.migrations.completeItem(item, "PENDING", "RIOT_TEMPORARY");
 				return;
 			}
+			if (item.category === "LEGACY_REGISTERED_VISIBLE_NAME" && item.parsedDisplayName) {
+				this.applyVerifiedWithoutRiot(item, member.user.username, member.joinedTimestamp ?? Date.now(), job.startedBy, "RIOT_NOT_FOUND");
+				this.migrations.completeItem(item, "VERIFIED_NO_RIOT", "RIOT_NOT_FOUND");
+				return;
+			}
 			this.registrations.setPendingMigration(job.guildId, item.userId, member.user.username, member.joinedTimestamp ?? Date.now(), job.id, item.originalNickname);
 			this.migrations.completeItem(item, "MANUAL_REVIEW", "RIOT_NOT_FOUND_MANUAL_REVIEW");
 		} catch (error) {
@@ -133,5 +147,25 @@ export class MigrationWorker {
 	private applyUnregistered(userId: string, username: string, joinedAt: number, jobId: string, nickname: string | null, actorId: string): void {
 		this.registrations.upsertJoined(this.config.DISCORD_GUILD_ID, userId, username, joinedAt);
 		this.registrations.unregister(this.config.DISCORD_GUILD_ID, userId, actorId, Date.now());
+	}
+
+	private applyVerifiedWithoutRiot(
+		item: { guildId: string; userId: string; jobId: string; parsedDisplayName: string | null; originalNickname: string | null },
+		discordUsername: string,
+		joinedAt: number,
+		actorUserId: string,
+		reason: "LEGACY_NO_RIOT" | "RIOT_NOT_FOUND"
+	): void {
+		this.registrations.upsertJoined(item.guildId, item.userId, discordUsername, joinedAt);
+		this.registrations.saveVerifiedWithoutRiot({
+			guildId: item.guildId,
+			userId: item.userId,
+			actorUserId,
+			discordUsername,
+			displayName: item.parsedDisplayName!,
+			migrationJobId: item.jobId,
+			originalNickname: item.originalNickname,
+			reason,
+		});
 	}
 }

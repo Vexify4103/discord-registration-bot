@@ -1,4 +1,4 @@
-import { and, asc, count, eq, lte, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, lte, or } from "drizzle-orm";
 import type { DatabaseContext } from "../database/client.js";
 import { migrationItems, migrationJobs, type MigrationItem, type MigrationJob } from "../database/schema/index.js";
 import type { LegacyParseResult } from "../parsers/legacy-nickname-parser.js";
@@ -69,6 +69,22 @@ export class MigrationRepository {
 	latest(guildId: string): MigrationJob | undefined {
 		return this.database.db.select().from(migrationJobs).where(eq(migrationJobs.guildId, guildId)).orderBy(asc(migrationJobs.startedAt)).all().at(-1);
 	}
+	active(guildId: string): MigrationJob | undefined {
+		return this.database.db
+			.select()
+			.from(migrationJobs)
+			.where(and(eq(migrationJobs.guildId, guildId), or(eq(migrationJobs.status, "RUNNING"), eq(migrationJobs.status, "PAUSED"))))
+			.orderBy(desc(migrationJobs.startedAt))
+			.get();
+	}
+	running(guildId: string): MigrationJob | undefined {
+		return this.database.db
+			.select()
+			.from(migrationJobs)
+			.where(and(eq(migrationJobs.guildId, guildId), eq(migrationJobs.status, "RUNNING")))
+			.orderBy(desc(migrationJobs.startedAt))
+			.get();
+	}
 	items(jobId: string): MigrationItem[] {
 		return this.database.db.select().from(migrationItems).where(eq(migrationItems.jobId, jobId)).orderBy(asc(migrationItems.sequence)).all();
 	}
@@ -136,7 +152,7 @@ export class MigrationRepository {
 	resume(id: string): void {
 		this.database.db.update(migrationJobs).set({ status: "RUNNING", pauseReason: null, updatedAt: Date.now() }).where(eq(migrationJobs.id, id)).run();
 	}
-	completeItem(item: MigrationItem, outcome: "VERIFIED" | "UNREGISTERED" | "PENDING" | "FAILED" | "SKIPPED" | "MANUAL_REVIEW", error?: string): void {
+	completeItem(item: MigrationItem, outcome: "VERIFIED" | "VERIFIED_NO_RIOT" | "UNREGISTERED" | "PENDING" | "FAILED" | "SKIPPED" | "MANUAL_REVIEW", error?: string): void {
 		const state = outcome === "PENDING" ? "PENDING_RETRY" : outcome;
 		this.database.sqlite.transaction(() => {
 			this.database.db
@@ -157,7 +173,7 @@ export class MigrationRepository {
 				cursorSequence: item.sequence,
 				updatedAt: Date.now(),
 			};
-			if (outcome === "VERIFIED") updates.verifiedMembers = job.verifiedMembers + 1;
+			if (outcome === "VERIFIED" || outcome === "VERIFIED_NO_RIOT") updates.verifiedMembers = job.verifiedMembers + 1;
 			if (outcome === "UNREGISTERED") updates.unregisteredMembers = job.unregisteredMembers + 1;
 			if ((outcome === "PENDING" || outcome === "MANUAL_REVIEW") && item.state !== "PENDING_RETRY") updates.pendingMembers = job.pendingMembers + 1;
 			if (outcome !== "PENDING" && outcome !== "MANUAL_REVIEW" && item.state === "PENDING_RETRY") updates.pendingMembers = Math.max(0, job.pendingMembers - 1);

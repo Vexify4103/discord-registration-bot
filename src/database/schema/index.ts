@@ -56,7 +56,7 @@ export const registrations = sqliteTable(
 	},
 	(t) => [
 		primaryKey({ columns: [t.guildId, t.userId] }),
-		check("registrations_status_check", sql`${t.status} in ('UNREGISTERED','PENDING_VERIFICATION','REGISTERED')`),
+		check("registrations_status_check", sql`${t.status} in ('UNREGISTERED','PENDING_VERIFICATION','REGISTERED','VERIFIED_NO_RIOT')`),
 		check("registrations_visibility_check", sql`${t.nameVisibility} is null or ${t.nameVisibility} in ('VISIBLE','HIDDEN')`),
 		check(
 			"registrations_registered_identity_check",
@@ -65,6 +65,10 @@ export const registrations = sqliteTable(
 		check(
 			"registrations_name_visibility_check",
 			sql`${t.status} <> 'REGISTERED' or (${t.nameVisibility} = 'VISIBLE' and ${t.displayName} is not null and length(trim(${t.displayName})) > 0) or (${t.nameVisibility} = 'HIDDEN' and ${t.displayName} is null)`
+		),
+		check(
+			"registrations_verified_no_riot_check",
+			sql`${t.status} <> 'VERIFIED_NO_RIOT' or (${t.nameVisibility} = 'VISIBLE' and ${t.displayName} is not null and length(trim(${t.displayName})) > 0 and ${t.puuid} is null and ${t.gameName} is null and ${t.tagLine} is null and ${t.riotId} is null and ${t.platformRegion} is null and ${t.accountRoutingGroup} is null and ${t.opggUrl} is null)`
 		),
 		check(
 			"registrations_unregistered_identity_check",

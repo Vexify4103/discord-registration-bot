@@ -22,6 +22,7 @@ describe("NicknameService", () => {
 		expect(result).toBe("ExamplePlayer#EUW");
 		expect(result).not.toContain("? |");
 	});
+	it("formats verified members without Riot using the known display name", () => expect(service.verifiedWithoutRiot("Martin")).toBe("Martin | ?#?"));
 	it("falls back from visible format to complete Riot ID", () => {
 		const gameName = "A".repeat(27);
 		expect(

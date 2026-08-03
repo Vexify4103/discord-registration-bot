@@ -17,8 +17,22 @@ export class LegacyNicknameParser {
 		const originalNickname = nickname;
 		if (!nickname) return this.unknown(originalNickname);
 		const value = nickname.trim();
+		const noRiotPattern = this.allowWhitespaceVariations ? /^(.+?)\s*\|\s*\?\s*#\s*\?$/u : /^(.+) \| \?#\?$/u;
+		const noRiotMatch = noRiotPattern.exec(value);
+		if (noRiotMatch) {
+			const displayName = noRiotMatch[1]?.trim();
+			if (displayName && displayName !== "?")
+				return {
+					category: "LEGACY_VERIFIED_NO_RIOT",
+					originalNickname,
+					displayName,
+					gameName: null,
+					tagLine: null,
+					nameVisibility: "VISIBLE",
+				};
+		}
 		const literalPatterns: Array<[RegExp, LegacyParseResult["unregisteredPattern"]]> = [
-			[this.allowWhitespaceVariations ? /^.+\s*\|\s*\?\s*#\s*\?$/u : /^.+ \| \?#\?$/u, "NAME_UNKNOWN"],
+			[this.allowWhitespaceVariations ? /^\?\s*\|\s*\?\s*#\s*\?$/u : /^\? \| \?#\?$/u, "NAME_UNKNOWN"],
 			[this.allowWhitespaceVariations ? /^ß\s*Unregistriert$/u : /^ß Unregistriert$/u, "SHARP_S"],
 			[this.allowWhitespaceVariations ? /^\?\s*Unregistriert$/u : /^\? Unregistriert$/u, "QUESTION_SPACE"],
 			[this.allowWhitespaceVariations ? /^\?\s*\|\s*Unregistriert$/u : /^\? \| Unregistriert$/u, "QUESTION_PIPE"],

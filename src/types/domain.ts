@@ -1,4 +1,4 @@
-export const registrationStatuses = ["UNREGISTERED", "PENDING_VERIFICATION", "REGISTERED"] as const;
+export const registrationStatuses = ["UNREGISTERED", "PENDING_VERIFICATION", "REGISTERED", "VERIFIED_NO_RIOT"] as const;
 export type RegistrationStatus = (typeof registrationStatuses)[number];
 
 export const nameVisibilities = ["VISIBLE", "HIDDEN"] as const;
@@ -10,6 +10,7 @@ export type SyncStatus = (typeof syncStatuses)[number];
 export const legacyCategories = [
 	"LEGACY_REGISTERED_VISIBLE_NAME",
 	"LEGACY_REGISTERED_HIDDEN_NAME",
+	"LEGACY_VERIFIED_NO_RIOT",
 	"LEGACY_UNREGISTERED",
 	"UNKNOWN_FORMAT",
 	"UNMANAGEABLE",

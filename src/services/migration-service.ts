@@ -65,6 +65,8 @@ export class MigrationService {
 		const job = this.migrations.getJob(jobId);
 		if (!job || job.status !== "PREVIEWED" || job.startedBy !== actorId || !job.confirmationHash || !job.confirmationExpiresAt || job.confirmationExpiresAt < Date.now())
 			return false;
+		const active = this.migrations.active(job.guildId);
+		if (active && active.id !== job.id) return false;
 		if (digest(token) !== job.confirmationHash) return false;
 		this.migrations.start(jobId);
 		return true;
@@ -127,4 +129,10 @@ export function memberFingerprint(member: GuildMember): string {
 const digest = (value: string) => createHash("sha256").update(value).digest("hex");
 const maskExample = (nickname: string | null, userId: string) => `${nickname?.slice(0, 24) ?? "(kein Nickname)"} · …${userId.slice(-4)}`;
 const estimate = (category: string) =>
-	category.startsWith("LEGACY_REGISTERED") ? ["RIOT_LOOKUP", "ROLE_CHANGES", "NICKNAME"] : category === "LEGACY_UNREGISTERED" ? ["ROLE_CHANGES", "NICKNAME"] : [];
+	category.startsWith("LEGACY_REGISTERED")
+		? ["RIOT_LOOKUP", "ROLE_CHANGES", "NICKNAME"]
+		: category === "LEGACY_VERIFIED_NO_RIOT"
+			? ["ROLE_CHANGES"]
+			: category === "LEGACY_UNREGISTERED"
+				? ["ROLE_CHANGES", "NICKNAME"]
+				: [];

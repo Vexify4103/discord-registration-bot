@@ -62,6 +62,12 @@ export class MemberStateReconciler {
 					type: registration.nameVisibility === "VISIBLE" ? "ADD_VERIFIED_NAMED_ROLE" : "ADD_VERIFIED_PRIVATE_ROLE",
 				});
 			if (member.roleIds.has(this.roles.unregistered)) operations.push({ type: "REMOVE_UNREGISTERED_ROLE" });
+		} else if (registration.status === "VERIFIED_NO_RIOT") {
+			if (!registration.displayName?.trim() || registration.nameVisibility !== "VISIBLE") throw new Error("INVALID_VERIFIED_NO_RIOT_STATE");
+			expectedNickname = this.nicknames.verifiedWithoutRiot(registration.displayName);
+			if (member.roleIds.has(this.roles.private)) operations.push({ type: "REMOVE_VERIFIED_PRIVATE_ROLE" });
+			if (!member.roleIds.has(this.roles.named)) operations.push({ type: "ADD_VERIFIED_NAMED_ROLE" });
+			if (member.roleIds.has(this.roles.unregistered)) operations.push({ type: "REMOVE_UNREGISTERED_ROLE" });
 		} else {
 			expectedNickname = this.nicknames.unregistered(member.username);
 			if (member.roleIds.has(this.roles.named)) operations.push({ type: "REMOVE_VERIFIED_NAMED_ROLE" });

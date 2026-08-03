@@ -6,7 +6,8 @@ describe("LegacyNicknameParser", () => {
 	it.each([
 		["? | ExamplePlayer#EUW", "LEGACY_REGISTERED_HIDDEN_NAME"],
 		["Martin | ExamplePlayer#EUW", "LEGACY_REGISTERED_VISIBLE_NAME"],
-		["Martin | ?#?", "LEGACY_UNREGISTERED"],
+		["Martin | ?#?", "LEGACY_VERIFIED_NO_RIOT"],
+		["? | ?#?", "LEGACY_UNREGISTERED"],
 		["ß Unregistriert", "LEGACY_UNREGISTERED"],
 		["? Unregistriert", "LEGACY_UNREGISTERED"],
 		["? | Unregistriert", "LEGACY_UNREGISTERED"],
@@ -24,6 +25,14 @@ describe("LegacyNicknameParser", () => {
 		expect(parser.parse("? | Spieler#EUW")).toMatchObject({
 			nameVisibility: "HIDDEN",
 			displayName: null,
+		}));
+	it("retains the known display name for members without a Riot account", () =>
+		expect(parser.parse("Martin | ?#?")).toMatchObject({
+			category: "LEGACY_VERIFIED_NO_RIOT",
+			displayName: "Martin",
+			nameVisibility: "VISIBLE",
+			gameName: null,
+			tagLine: null,
 		}));
 	it("supports configured whitespace variations", () => expect(new LegacyNicknameParser(true).parse("?    |   Unregistriert").category).toBe("LEGACY_UNREGISTERED"));
 	it("handles Unicode", () =>

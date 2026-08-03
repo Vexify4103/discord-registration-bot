@@ -45,6 +45,30 @@ describe("RegistrationRepository", () => {
 		expect(row.displayName).toBe("Martin");
 		expect(context.sqlite.prepare("select count(*) count from pending_operations").get()).toMatchObject({ count: 1 });
 	});
+	it("stores a verified member without Riot identity and excludes them from cleanup", () => {
+		repository.upsertJoined("1", "2", "discord", 1);
+		const row = repository.saveVerifiedWithoutRiot({
+			guildId: "1",
+			userId: "2",
+			actorUserId: "9",
+			discordUsername: "discord",
+			displayName: "Martin",
+			migrationJobId: "migration-1",
+			originalNickname: "Martin | OldRiot#EUW",
+			reason: "RIOT_NOT_FOUND",
+			now: 10,
+		});
+		expect(row).toMatchObject({
+			status: "VERIFIED_NO_RIOT",
+			displayName: "Martin",
+			nameVisibility: "VISIBLE",
+			puuid: null,
+			riotId: null,
+			originalMigrationNickname: "Martin | OldRiot#EUW",
+		});
+		expect(repository.dueCleanup(Date.now())).toEqual([]);
+		expect(context.sqlite.prepare("select count(*) count from pending_operations").get()).toMatchObject({ count: 1 });
+	});
 	it("rejects contradictory visibility/name combinations", () => {
 		repository.upsertJoined("1", "2", "discord", 1);
 		expect(() =>

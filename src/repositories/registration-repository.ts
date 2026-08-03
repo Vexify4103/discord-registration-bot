@@ -19,6 +19,19 @@ export interface SaveRegistrationInput {
 	now?: number;
 }
 
+export interface SaveVerifiedWithoutRiotInput {
+	guildId: string;
+	userId: string;
+	actorUserId: string;
+	discordUsername: string;
+	displayName: string;
+	migrationJobId: string;
+	originalNickname: string | null;
+	reason: "LEGACY_NO_RIOT" | "RIOT_NOT_FOUND";
+	priority?: number;
+	now?: number;
+}
+
 export class DuplicatePuuidError extends Error {}
 
 export class RegistrationRepository {
@@ -39,7 +52,7 @@ export class RegistrationRepository {
 		const existing = this.get(guildId, userId);
 		const now = Date.now();
 		if (existing?.isPresent) return existing;
-		if (existing?.status === "REGISTERED" && (!existing.retentionExpiresAt || existing.retentionExpiresAt > now)) {
+		if ((existing?.status === "REGISTERED" || existing?.status === "VERIFIED_NO_RIOT") && (!existing.retentionExpiresAt || existing.retentionExpiresAt > now)) {
 			this.database.db
 				.update(registrations)
 				.set({
@@ -250,6 +263,83 @@ export class RegistrationRepository {
 				},
 				now
 			);
+			return this.get(input.guildId, input.userId)!;
+		})();
+	}
+
+	saveVerifiedWithoutRiot(input: SaveVerifiedWithoutRiotInput): Registration {
+		const displayName = input.displayName.trim();
+		if (!displayName) throw new Error("VERIFIED_NO_RIOT_REQUIRES_NAME");
+		const now = input.now ?? Date.now();
+		return this.database.sqlite.transaction(() => {
+			const existing = this.get(input.guildId, input.userId);
+			const version = (existing?.stateVersion ?? 0) + 1;
+			this.database.db
+				.insert(registrations)
+				.values({
+					guildId: input.guildId,
+					userId: input.userId,
+					discordUsernameSnapshot: input.discordUsername,
+					status: "VERIFIED_NO_RIOT",
+					isPresent: true,
+					joinedAt: existing?.joinedAt ?? now,
+					unregisteredSince: null,
+					displayName,
+					nameVisibility: "VISIBLE",
+					registeredAt: existing?.registeredAt ?? now,
+					riotSyncStatus: "NOT_REQUIRED",
+					nicknameSyncStatus: "PENDING",
+					roleSyncStatus: "PENDING",
+					migrationSource: "LEGACY_NICKNAME",
+					originalMigrationNickname: input.originalNickname,
+					migrationJobId: input.migrationJobId,
+					stateVersion: version,
+					lastFailureCode: input.reason === "RIOT_NOT_FOUND" ? "RIOT_ID_OUTDATED" : null,
+					lastFailureAt: input.reason === "RIOT_NOT_FOUND" ? now : null,
+					createdAt: existing?.createdAt ?? now,
+					updatedAt: now,
+				})
+				.onConflictDoUpdate({
+					target: [registrations.guildId, registrations.userId],
+					set: {
+						discordUsernameSnapshot: input.discordUsername,
+						status: "VERIFIED_NO_RIOT",
+						isPresent: true,
+						leftAt: null,
+						retentionExpiresAt: null,
+						unregisteredSince: null,
+						displayName,
+						nameVisibility: "VISIBLE",
+						puuid: null,
+						gameName: null,
+						tagLine: null,
+						riotId: null,
+						platformRegion: null,
+						accountRoutingGroup: null,
+						opggUrl: null,
+						registeredAt: existing?.registeredAt ?? now,
+						lastRiotSyncAt: null,
+						nextRiotSyncAt: null,
+						riotSyncStatus: "NOT_REQUIRED",
+						riotSyncFailureCount: 0,
+						lastRiotSyncErrorCode: null,
+						nicknameSyncStatus: "PENDING",
+						roleSyncStatus: "PENDING",
+						migrationSource: "LEGACY_NICKNAME",
+						originalMigrationNickname: input.originalNickname,
+						migrationJobId: input.migrationJobId,
+						stateVersion: version,
+						duplicatePuuidOverride: false,
+						duplicateOverrideActorId: null,
+						duplicateOverrideAt: null,
+						lastFailureCode: input.reason === "RIOT_NOT_FOUND" ? "RIOT_ID_OUTDATED" : null,
+						lastFailureAt: input.reason === "RIOT_NOT_FOUND" ? now : null,
+						updatedAt: now,
+					},
+				})
+				.run();
+			this.enqueueReconcile(input.guildId, input.userId, version, input.priority ?? operationPriorities.MIGRATION, now);
+			this.audit(input.guildId, input.userId, input.actorUserId, "MIGRATION_VERIFIED_WITHOUT_RIOT", "SUCCESS", { reason: input.reason }, now);
 			return this.get(input.guildId, input.userId)!;
 		})();
 	}

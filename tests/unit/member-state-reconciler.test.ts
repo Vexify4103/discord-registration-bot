@@ -88,6 +88,33 @@ describe("MemberStateReconciler", () => {
 				}
 			).operations
 		).toEqual([]));
+	it("verified member without Riot keeps the known name and receives only the named role", () =>
+		expect(
+			service
+				.plan(
+					{
+						...base,
+						status: "VERIFIED_NO_RIOT",
+						puuid: null,
+						gameName: null,
+						tagLine: null,
+						riotId: null,
+						platformRegion: null,
+						accountRoutingGroup: null,
+						opggUrl: null,
+						nextRiotSyncAt: null,
+						riotSyncStatus: "NOT_REQUIRED",
+					},
+					{
+						userId: "2",
+						username: "d",
+						nickname: "Martin | ?#?",
+						roleIds: new Set(["private", "unreg"]),
+						manageable: true,
+					}
+				)
+				.operations.map((operation) => operation.type)
+		).toEqual(["REMOVE_VERIFIED_PRIVATE_ROLE", "ADD_VERIFIED_NAMED_ROLE", "REMOVE_UNREGISTERED_ROLE"]));
 	it("higher staff role does not alter desired registration roles when member remains manageable", () =>
 		expect(
 			service.plan(base, {

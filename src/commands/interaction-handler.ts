@@ -195,6 +195,10 @@ async function handleSetup(interaction: ChatInputCommandInteraction, actor: Guil
 		return;
 	}
 	if (mode === "preview") {
+		if (ctx.migrations.active(interaction.guildId!)) {
+			await interaction.editReply(ctx.i18n.t("migration.activeExists"));
+			return;
+		}
 		const summary = await ctx.migrationService.preview(interaction.guild!, actor.id);
 		const row = migrationButtons(summary.jobId, actor.id, summary.token, ctx.i18n);
 		const counts = Object.entries(summary.counts)
@@ -206,7 +210,12 @@ async function handleSetup(interaction: ChatInputCommandInteraction, actor: Guil
 		});
 		return;
 	}
-	const job = ctx.migrations.latest(interaction.guildId!);
+	const activeJob = ctx.migrations.active(interaction.guildId!);
+	if (mode === "apply" && activeJob) {
+		await interaction.editReply(ctx.i18n.t("migration.activeExists"));
+		return;
+	}
+	const job = mode === "apply" ? ctx.migrations.latest(interaction.guildId!) : (activeJob ?? ctx.migrations.latest(interaction.guildId!));
 	if (!job) {
 		await interaction.editReply(ctx.i18n.t("migration.noPreview"));
 		return;
@@ -345,7 +354,15 @@ function migrationButtons(jobId: string, actorId: string, token: string, i18n: L
 }
 
 function localizedRegistrationStatus(status: string, i18n: Localizer): string {
-	return i18n.t(status === "REGISTERED" ? "status.registered" : status === "UNREGISTERED" ? "status.unregistered" : "status.pending");
+	return i18n.t(
+		status === "REGISTERED"
+			? "status.registered"
+			: status === "VERIFIED_NO_RIOT"
+				? "status.verifiedNoRiot"
+				: status === "UNREGISTERED"
+					? "status.unregistered"
+					: "status.pending"
+	);
 }
 function localizedVisibility(visibility: string | null, i18n: Localizer): string {
 	return visibility === "VISIBLE" ? i18n.t("visibility.visible") : visibility === "HIDDEN" ? i18n.t("visibility.hidden") : "–";
@@ -354,6 +371,7 @@ function localizedMigrationCategory(category: string, i18n: Localizer): string {
 	const keys: Record<string, Parameters<Localizer["t"]>[0]> = {
 		LEGACY_REGISTERED_VISIBLE_NAME: "migration.category.visible",
 		LEGACY_REGISTERED_HIDDEN_NAME: "migration.category.hidden",
+		LEGACY_VERIFIED_NO_RIOT: "migration.category.verifiedNoRiot",
 		LEGACY_UNREGISTERED: "migration.category.unregistered",
 		UNKNOWN_FORMAT: "migration.category.unknown",
 		UNMANAGEABLE: "migration.category.unmanageable",
