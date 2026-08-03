@@ -12,15 +12,14 @@ describe("NicknameService", () => {
 				tagLine: "EUW",
 			})
 		).toBe("Martin | ExamplePlayer#EUW"));
-	it("formats hidden registrations as Riot ID only", () => {
+	it("formats hidden registrations with the private-name placeholder", () => {
 		const result = service.registered({
 			visibility: "HIDDEN",
 			displayName: null,
 			gameName: "ExamplePlayer",
 			tagLine: "EUW",
 		});
-		expect(result).toBe("ExamplePlayer#EUW");
-		expect(result).not.toContain("? |");
+		expect(result).toBe("? | ExamplePlayer#EUW");
 	});
 	it("formats verified members without Riot using the known display name", () => expect(service.verifiedWithoutRiot("Martin")).toBe("Martin | ?#?"));
 	it("falls back from visible format to complete Riot ID", () => {
@@ -42,7 +41,7 @@ describe("NicknameService", () => {
 				gameName: "SehrLangerSpielernameDerNichtPasst",
 				tagLine: "EUW",
 			})
-		).toMatch(/#EUW$/));
+		).toMatch(/^\? \| .+#EUW$/));
 	it("does not split grapheme clusters", () =>
 		expect([...new Intl.Segmenter("de-DE", { granularity: "grapheme" }).segment(service.unregistered("👨‍👩‍👧‍👦".repeat(30)))].length).toBeLessThanOrEqual(32));
 	it("falls back safely for an impossible template", () => expect(new NicknameService("X".repeat(40) + "{username}").unregistered("name")).toBe("Unregistriert"));

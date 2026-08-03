@@ -68,7 +68,7 @@ describe("MemberStateReconciler", () => {
 					{
 						userId: "2",
 						username: "d",
-						nickname: "Game#EUW",
+						nickname: "? | Game#EUW",
 						roleIds: new Set(["named"]),
 						manageable: true,
 					}

@@ -24,7 +24,7 @@ export const de: Record<MessageKey, string> = {
 	"command.delete.description": "Löscht gespeicherte Registrierungsdaten eines Mitglieds.",
 	"command.reconcile.description": "Repariert Rollen und Nickname anhand der Datenbank.",
 	"registration.success": "Registrierung erfolgreich. Deine Discord-Rollen und dein Nickname wurden aktualisiert.",
-	"registration.hiddenSuccess": "Registrierung erfolgreich. Dein Nickname zeigt nur deine Riot-ID.",
+	"registration.hiddenSuccess": "Registrierung erfolgreich. Dein Nickname zeigt ? | gefolgt von deiner Riot-ID.",
 	"registration.invalidOpggUrl": "Der OP.GG-Link ist ungültig. Verwende einen vollständigen League-of-Legends-Profillink von op.gg.",
 	"registration.riotAccountNotFound": "Dein Riot-Konto konnte nicht gefunden werden. Prüfe bitte den Riot-Namen, den Tag und den OP.GG-Link.",
 	"registration.nameRequired": "Bitte gib einen nicht leeren persönlichen Namen an, wenn dein Name sichtbar sein soll.",

@@ -1,0 +1,1134 @@
+{
+	"id": "76990f38-34b3-458c-96a3-04c2ab3dab62",
+	"prevId": "2f9bf6d9-b709-42f2-99fd-7b6cc371c685",
+	"version": "6",
+	"dialect": "sqlite",
+	"tables": {
+		"audit_events": {
+			"name": "audit_events",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"guild_id": {
+					"name": "guild_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"target_user_id": {
+					"name": "target_user_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"actor_user_id": {
+					"name": "actor_user_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"action": {
+					"name": "action",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"result": {
+					"name": "result",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"metadata": {
+					"name": "metadata",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": "'{}'"
+				},
+				"correlation_id": {
+					"name": "correlation_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"schema_version": {
+					"name": "schema_version",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": 1
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				}
+			},
+			"indexes": {
+				"audit_events_target_idx": {
+					"name": "audit_events_target_idx",
+					"columns": ["guild_id", "target_user_id", "created_at"],
+					"isUnique": false
+				},
+				"audit_events_expiry_idx": {
+					"name": "audit_events_expiry_idx",
+					"columns": ["created_at"],
+					"isUnique": false
+				}
+			},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {}
+		},
+		"migration_items": {
+			"name": "migration_items",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"job_id": {
+					"name": "job_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"sequence": {
+					"name": "sequence",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"guild_id": {
+					"name": "guild_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"user_id": {
+					"name": "user_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"username_snapshot": {
+					"name": "username_snapshot",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"original_nickname": {
+					"name": "original_nickname",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"category": {
+					"name": "category",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"parsed_display_name": {
+					"name": "parsed_display_name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"parsed_game_name": {
+					"name": "parsed_game_name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"parsed_tag_line": {
+					"name": "parsed_tag_line",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"snapshot_fingerprint": {
+					"name": "snapshot_fingerprint",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"manageable": {
+					"name": "manageable",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"state": {
+					"name": "state",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"attempt_count": {
+					"name": "attempt_count",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": 0
+				},
+				"next_attempt_at": {
+					"name": "next_attempt_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"last_error_code": {
+					"name": "last_error_code",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"estimated_operations": {
+					"name": "estimated_operations",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"metadata": {
+					"name": "metadata",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": "'{}'"
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				}
+			},
+			"indexes": {
+				"migration_items_job_user_unique": {
+					"name": "migration_items_job_user_unique",
+					"columns": ["job_id", "user_id"],
+					"isUnique": true
+				},
+				"migration_items_due_idx": {
+					"name": "migration_items_due_idx",
+					"columns": ["job_id", "state", "sequence"],
+					"isUnique": false
+				}
+			},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {}
+		},
+		"migration_jobs": {
+			"name": "migration_jobs",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"guild_id": {
+					"name": "guild_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"status": {
+					"name": "status",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"mode": {
+					"name": "mode",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"started_by": {
+					"name": "started_by",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"started_at": {
+					"name": "started_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"completed_at": {
+					"name": "completed_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"last_processed_user_id": {
+					"name": "last_processed_user_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"cursor_sequence": {
+					"name": "cursor_sequence",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": 0
+				},
+				"total_members": {
+					"name": "total_members",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": 0
+				},
+				"processed_members": {
+					"name": "processed_members",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": 0
+				},
+				"verified_members": {
+					"name": "verified_members",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": 0
+				},
+				"unregistered_members": {
+					"name": "unregistered_members",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": 0
+				},
+				"pending_members": {
+					"name": "pending_members",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": 0
+				},
+				"failed_members": {
+					"name": "failed_members",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": 0
+				},
+				"configuration_snapshot": {
+					"name": "configuration_snapshot",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"preview_fingerprint": {
+					"name": "preview_fingerprint",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"confirmation_hash": {
+					"name": "confirmation_hash",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"confirmation_expires_at": {
+					"name": "confirmation_expires_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"pause_reason": {
+					"name": "pause_reason",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"lease_owner": {
+					"name": "lease_owner",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"lease_expires_at": {
+					"name": "lease_expires_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				}
+			},
+			"indexes": {
+				"migration_jobs_guild_status_idx": {
+					"name": "migration_jobs_guild_status_idx",
+					"columns": ["guild_id", "status"],
+					"isUnique": false
+				}
+			},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {}
+		},
+		"pending_operations": {
+			"name": "pending_operations",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"guild_id": {
+					"name": "guild_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"user_id": {
+					"name": "user_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"operation_type": {
+					"name": "operation_type",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"payload": {
+					"name": "payload",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"priority": {
+					"name": "priority",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"state_version": {
+					"name": "state_version",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"deduplication_key": {
+					"name": "deduplication_key",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"attempt_count": {
+					"name": "attempt_count",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": 0
+				},
+				"next_attempt_at": {
+					"name": "next_attempt_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"last_error_code": {
+					"name": "last_error_code",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"terminal": {
+					"name": "terminal",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": false
+				},
+				"lease_owner": {
+					"name": "lease_owner",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"lease_expires_at": {
+					"name": "lease_expires_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				}
+			},
+			"indexes": {
+				"pending_operations_dedupe_unique": {
+					"name": "pending_operations_dedupe_unique",
+					"columns": ["deduplication_key"],
+					"isUnique": true
+				},
+				"pending_operations_due_idx": {
+					"name": "pending_operations_due_idx",
+					"columns": ["terminal", "next_attempt_at", "priority"],
+					"isUnique": false
+				}
+			},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {}
+		},
+		"registration_attempts": {
+			"name": "registration_attempts",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"guild_id": {
+					"name": "guild_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"user_id": {
+					"name": "user_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"actor_user_id": {
+					"name": "actor_user_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"expires_at": {
+					"name": "expires_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				}
+			},
+			"indexes": {
+				"registration_attempts_user_unique": {
+					"name": "registration_attempts_user_unique",
+					"columns": ["guild_id", "user_id"],
+					"isUnique": true
+				},
+				"registration_attempts_expiry_idx": {
+					"name": "registration_attempts_expiry_idx",
+					"columns": ["expires_at"],
+					"isUnique": false
+				}
+			},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {}
+		},
+		"registrations": {
+			"name": "registrations",
+			"columns": {
+				"guild_id": {
+					"name": "guild_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"user_id": {
+					"name": "user_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"discord_username_snapshot": {
+					"name": "discord_username_snapshot",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"status": {
+					"name": "status",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"is_present": {
+					"name": "is_present",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": true
+				},
+				"joined_at": {
+					"name": "joined_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"left_at": {
+					"name": "left_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"retention_expires_at": {
+					"name": "retention_expires_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"unregistered_since": {
+					"name": "unregistered_since",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"display_name": {
+					"name": "display_name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"name_visibility": {
+					"name": "name_visibility",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"puuid": {
+					"name": "puuid",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"game_name": {
+					"name": "game_name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"tag_line": {
+					"name": "tag_line",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"riot_id": {
+					"name": "riot_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"platform_region": {
+					"name": "platform_region",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"account_routing_group": {
+					"name": "account_routing_group",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"opgg_url": {
+					"name": "opgg_url",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"registered_at": {
+					"name": "registered_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"last_riot_sync_at": {
+					"name": "last_riot_sync_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"next_riot_sync_at": {
+					"name": "next_riot_sync_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"riot_sync_status": {
+					"name": "riot_sync_status",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": "'NOT_REQUIRED'"
+				},
+				"riot_sync_failure_count": {
+					"name": "riot_sync_failure_count",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": 0
+				},
+				"last_riot_sync_error_code": {
+					"name": "last_riot_sync_error_code",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"last_nickname_sync_at": {
+					"name": "last_nickname_sync_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"nickname_sync_status": {
+					"name": "nickname_sync_status",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": "'NOT_REQUIRED'"
+				},
+				"last_role_sync_at": {
+					"name": "last_role_sync_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"role_sync_status": {
+					"name": "role_sync_status",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": "'NOT_REQUIRED'"
+				},
+				"migration_source": {
+					"name": "migration_source",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"original_migration_nickname": {
+					"name": "original_migration_nickname",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"migration_job_id": {
+					"name": "migration_job_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"state_version": {
+					"name": "state_version",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": 1
+				},
+				"duplicate_puuid_override": {
+					"name": "duplicate_puuid_override",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": false
+				},
+				"duplicate_override_actor_id": {
+					"name": "duplicate_override_actor_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"duplicate_override_at": {
+					"name": "duplicate_override_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"last_failure_code": {
+					"name": "last_failure_code",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"last_failure_at": {
+					"name": "last_failure_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"cleanup_claim_version": {
+					"name": "cleanup_claim_version",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				}
+			},
+			"indexes": {
+				"registrations_cleanup_idx": {
+					"name": "registrations_cleanup_idx",
+					"columns": ["guild_id", "status", "is_present", "unregistered_since"],
+					"isUnique": false
+				},
+				"registrations_riot_due_idx": {
+					"name": "registrations_riot_due_idx",
+					"columns": ["status", "is_present", "next_riot_sync_at"],
+					"isUnique": false
+				},
+				"registrations_retention_idx": {
+					"name": "registrations_retention_idx",
+					"columns": ["retention_expires_at"],
+					"isUnique": false
+				},
+				"registrations_active_puuid_unique": {
+					"name": "registrations_active_puuid_unique",
+					"columns": ["guild_id", "puuid"],
+					"where": "\"registrations\".\"status\" = 'REGISTERED' and \"registrations\".\"puuid\" is not null and \"registrations\".\"duplicate_puuid_override\" = 0",
+					"isUnique": true
+				}
+			},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {
+				"registrations_guild_id_user_id_pk": {
+					"columns": ["guild_id", "user_id"],
+					"name": "registrations_guild_id_user_id_pk"
+				}
+			},
+			"uniqueConstraints": {},
+			"checkConstraints": {
+				"registrations_status_check": {
+					"name": "registrations_status_check",
+					"value": "\"registrations\".\"status\" in ('UNREGISTERED','PENDING_VERIFICATION','REGISTERED','VERIFIED_NO_RIOT')"
+				},
+				"registrations_visibility_check": {
+					"name": "registrations_visibility_check",
+					"value": "\"registrations\".\"name_visibility\" is null or \"registrations\".\"name_visibility\" in ('VISIBLE','HIDDEN')"
+				},
+				"registrations_registered_identity_check": {
+					"name": "registrations_registered_identity_check",
+					"value": "\"registrations\".\"status\" <> 'REGISTERED' or (\"registrations\".\"puuid\" is not null and \"registrations\".\"game_name\" is not null and \"registrations\".\"tag_line\" is not null and \"registrations\".\"platform_region\" is not null and \"registrations\".\"account_routing_group\" is not null and \"registrations\".\"name_visibility\" is not null)"
+				},
+				"registrations_name_visibility_check": {
+					"name": "registrations_name_visibility_check",
+					"value": "\"registrations\".\"status\" <> 'REGISTERED' or (\"registrations\".\"name_visibility\" = 'VISIBLE' and \"registrations\".\"display_name\" is not null and length(trim(\"registrations\".\"display_name\")) > 0) or (\"registrations\".\"name_visibility\" = 'HIDDEN' and \"registrations\".\"display_name\" is null)"
+				},
+				"registrations_verified_no_riot_check": {
+					"name": "registrations_verified_no_riot_check",
+					"value": "\"registrations\".\"status\" <> 'VERIFIED_NO_RIOT' or (\"registrations\".\"name_visibility\" = 'VISIBLE' and \"registrations\".\"display_name\" is not null and length(trim(\"registrations\".\"display_name\")) > 0 and \"registrations\".\"puuid\" is null and \"registrations\".\"game_name\" is null and \"registrations\".\"tag_line\" is null and \"registrations\".\"riot_id\" is null and \"registrations\".\"platform_region\" is null and \"registrations\".\"account_routing_group\" is null and \"registrations\".\"opgg_url\" is null)"
+				},
+				"registrations_unregistered_identity_check": {
+					"name": "registrations_unregistered_identity_check",
+					"value": "\"registrations\".\"status\" <> 'UNREGISTERED' or (\"registrations\".\"puuid\" is null and \"registrations\".\"game_name\" is null and \"registrations\".\"tag_line\" is null and \"registrations\".\"riot_id\" is null and \"registrations\".\"name_visibility\" is null and \"registrations\".\"display_name\" is null)"
+				}
+			}
+		},
+		"retained_registration_data": {
+			"name": "retained_registration_data",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"guild_id": {
+					"name": "guild_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"user_id": {
+					"name": "user_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"data_type": {
+					"name": "data_type",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"value": {
+					"name": "value",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"reason": {
+					"name": "reason",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"retained_at": {
+					"name": "retained_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"purge_at": {
+					"name": "purge_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"created_by_action": {
+					"name": "created_by_action",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				}
+			},
+			"indexes": {
+				"retained_data_purge_idx": {
+					"name": "retained_data_purge_idx",
+					"columns": ["purge_at"],
+					"isUnique": false
+				},
+				"retained_data_user_idx": {
+					"name": "retained_data_user_idx",
+					"columns": ["guild_id", "user_id"],
+					"isUnique": false
+				}
+			},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {}
+		},
+		"worker_leases": {
+			"name": "worker_leases",
+			"columns": {
+				"name": {
+					"name": "name",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"owner": {
+					"name": "owner",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"expires_at": {
+					"name": "expires_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {}
+		}
+	},
+	"views": {},
+	"enums": {},
+	"_meta": {
+		"columns": {},
+		"schemas": {},
+		"tables": {}
+	},
+	"internal": {
+		"indexes": {}
+	}
+}

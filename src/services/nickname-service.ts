@@ -13,7 +13,7 @@ export class NicknameService {
 
 	registered(input: { visibility: NameVisibility; displayName: string | null; gameName: string; tagLine: string }): string {
 		const riotId = `${input.gameName}#${input.tagLine}`;
-		if (input.visibility === "HIDDEN") return this.riotIdOnly(input.gameName, input.tagLine);
+		if (input.visibility === "HIDDEN") return this.hiddenRiotId(input.gameName, input.tagLine);
 		if (!input.displayName?.trim()) throw new Error("VISIBLE_REQUIRES_NAME");
 		const suffix = ` | ${riotId}`;
 		const available = MAX_NICKNAME_LENGTH - this.length(suffix);
@@ -48,6 +48,14 @@ export class NicknameService {
 		const available = MAX_NICKNAME_LENGTH - this.length(suffix);
 		if (available >= 1) return `${this.truncate(gameName, available)}${suffix}`;
 		return "Registriert";
+	}
+
+	private hiddenRiotId(gameName: string, tagLine: string): string {
+		const prefix = "? | ";
+		const suffix = `#${tagLine}`;
+		const available = MAX_NICKNAME_LENGTH - this.length(prefix) - this.length(suffix);
+		if (available >= 1) return `${prefix}${this.truncate(gameName, available)}${suffix}`;
+		return "? | Registriert";
 	}
 
 	private truncate(value: string, limit: number): string {
