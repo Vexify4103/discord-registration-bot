@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AppConfig } from "../../src/config/schema.js";
 import { MigrationWorker } from "../../src/jobs/migration-worker.js";
+import { DuplicatePuuidError } from "../../src/repositories/registration-repository.js";
 import { memberFingerprint } from "../../src/services/migration-service.js";
 
 describe("MigrationWorker", () => {
@@ -128,6 +129,68 @@ describe("MigrationWorker", () => {
 		expect(migrations.completeItem).toHaveBeenCalledWith(item, "MANUAL_REVIEW", "RIOT_NOT_FOUND_MANUAL_REVIEW");
 		expect(registrations.saveVerifiedWithoutRiot).not.toHaveBeenCalled();
 		expect(registrations.unregister).not.toHaveBeenCalled();
+	});
+
+	it("moves a duplicate Riot PUUID to manual review and continues the migration", async () => {
+		const member = {
+			id: "user-duplicate",
+			user: { username: "DuplicateDiscordName" },
+			joinedTimestamp: 1_700_000_000_000,
+			roles: { cache: new Map([["everyone", {}]]) },
+		};
+		const job = { id: "job-duplicate", guildId: "guild-1", startedBy: "admin-1", status: "RUNNING" };
+		const item = {
+			id: "item-duplicate",
+			jobId: job.id,
+			guildId: job.guildId,
+			userId: member.id,
+			category: "LEGACY_REGISTERED_VISIBLE_NAME",
+			parsedDisplayName: "Martin",
+			parsedGameName: "SharedRiotName",
+			parsedTagLine: "EUW",
+			originalNickname: "Martin | SharedRiotName#EUW",
+			snapshotFingerprint: memberFingerprint(member as never),
+		};
+		const migrations = {
+			running: vi.fn().mockReturnValue(job),
+			next: vi.fn().mockReturnValue(item),
+			completeItem: vi.fn(),
+			finishIfDone: vi.fn(),
+		};
+		const registrations = {
+			setPendingMigration: vi.fn(),
+			saveRegistered: vi.fn(() => {
+				throw new DuplicatePuuidError("DUPLICATE_PUUID");
+			}),
+			saveVerifiedWithoutRiot: vi.fn(),
+			upsertJoined: vi.fn(),
+			unregister: vi.fn(),
+		};
+		const logger = { error: vi.fn(), warn: vi.fn() };
+		const worker = new MigrationWorker(
+			{
+				guilds: {
+					fetch: vi.fn().mockResolvedValue({ members: { fetch: vi.fn().mockResolvedValue(member) } }),
+				},
+			} as never,
+			{
+				DISCORD_GUILD_ID: job.guildId,
+				LEGACY_RIOT_ACCOUNT_ROUTES: ["europe"],
+				DEFAULT_RIOT_ACCOUNT_ROUTE: "europe",
+				DEFAULT_RIOT_PLATFORM_REGION: "EUW1",
+			} as AppConfig,
+			migrations as never,
+			registrations as never,
+			{ byRiotId: vi.fn().mockResolvedValue({ kind: "success", account: { puuid: "shared-puuid", gameName: "SharedRiotName", tagLine: "EUW" } }) } as never,
+			{ acquire: vi.fn().mockReturnValue(true), release: vi.fn() } as never,
+			logger as never
+		);
+
+		await worker.tick();
+
+		expect(registrations.setPendingMigration).toHaveBeenCalledWith(job.guildId, member.id, member.user.username, member.joinedTimestamp, job.id, item.originalNickname);
+		expect(migrations.completeItem).toHaveBeenCalledWith(item, "MANUAL_REVIEW", "DUPLICATE_PUUID_MANUAL_REVIEW");
+		expect(logger.error).not.toHaveBeenCalled();
 	});
 
 	it("does not process another member while the migration is paused", async () => {

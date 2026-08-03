@@ -4,7 +4,7 @@ import type { AppConfig } from "../config/schema.js";
 import { RiotAccountService } from "../integrations/riot/riot-account-service.js";
 import { memberFingerprint } from "../services/migration-service.js";
 import { MigrationRepository } from "../repositories/migration-repository.js";
-import { RegistrationRepository } from "../repositories/registration-repository.js";
+import { DuplicatePuuidError, RegistrationRepository } from "../repositories/registration-repository.js";
 import { WorkerLeaseRepository } from "../repositories/worker-lease-repository.js";
 import { buildOpggUrl } from "../parsers/opgg-parser.js";
 
@@ -91,22 +91,30 @@ export class MigrationWorker {
 				const result = await this.riot.byRiotId(route, item.parsedGameName, item.parsedTagLine, 50);
 				if (result.kind === "success") {
 					const visibility = item.category === "LEGACY_REGISTERED_HIDDEN_NAME" ? ("HIDDEN" as const) : ("VISIBLE" as const);
-					this.registrations.saveRegistered({
-						guildId: job.guildId,
-						userId: item.userId,
-						actorUserId: job.startedBy,
-						discordUsername: member.user.username,
-						displayName: visibility === "VISIBLE" ? item.parsedDisplayName : null,
-						nameVisibility: visibility,
-						identity: {
-							...result.account,
-							riotId: `${result.account.gameName}#${result.account.tagLine}`,
-							platformRegion: this.config.DEFAULT_RIOT_PLATFORM_REGION,
-							accountRoutingGroup: route,
-							opggUrl: buildOpggUrl(this.config.DEFAULT_RIOT_PLATFORM_REGION, result.account.gameName, result.account.tagLine),
-						},
-						priority: 50,
-					});
+					try {
+						this.registrations.saveRegistered({
+							guildId: job.guildId,
+							userId: item.userId,
+							actorUserId: job.startedBy,
+							discordUsername: member.user.username,
+							displayName: visibility === "VISIBLE" ? item.parsedDisplayName : null,
+							nameVisibility: visibility,
+							identity: {
+								...result.account,
+								riotId: `${result.account.gameName}#${result.account.tagLine}`,
+								platformRegion: this.config.DEFAULT_RIOT_PLATFORM_REGION,
+								accountRoutingGroup: route,
+								opggUrl: buildOpggUrl(this.config.DEFAULT_RIOT_PLATFORM_REGION, result.account.gameName, result.account.tagLine),
+							},
+							priority: 50,
+						});
+					} catch (error) {
+						if (!(error instanceof DuplicatePuuidError)) throw error;
+						this.registrations.setPendingMigration(job.guildId, item.userId, member.user.username, member.joinedTimestamp ?? Date.now(), job.id, item.originalNickname);
+						this.migrations.completeItem(item, "MANUAL_REVIEW", "DUPLICATE_PUUID_MANUAL_REVIEW");
+						this.logger.warn({ jobId: job.id, itemId: item.id, userId: item.userId }, "Migration item has a duplicate Riot PUUID and requires manual review");
+						return;
+					}
 					this.migrations.completeItem(item, "VERIFIED");
 					return;
 				}
