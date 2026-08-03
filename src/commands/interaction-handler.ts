@@ -229,6 +229,10 @@ async function handleSetup(interaction: ChatInputCommandInteraction, actor: Guil
 		await interaction.editReply(ctx.i18n.t("migration.noPreview"));
 		return;
 	}
+	if (mode === "unknown") {
+		await interaction.editReply(unknownFormatPage(job.id, actor.id, 0, ctx));
+		return;
+	}
 	if (mode === "apply") {
 		if (job.status !== "PREVIEWED") {
 			await interaction.editReply(ctx.i18n.t("migration.noPreview"));
@@ -273,6 +277,18 @@ async function handleSetup(interaction: ChatInputCommandInteraction, actor: Guil
 
 async function handleButton(interaction: ButtonInteraction, ctx: InteractionContext): Promise<void> {
 	const parts = interaction.customId.split(":");
+	if (parts[0] === "migration-unknown" && parts.length === 4) {
+		const [, jobId, actorId, rawPage] = parts;
+		if (interaction.user.id !== actorId) {
+			await interaction.reply({
+				content: ctx.i18n.t("permissions.denied"),
+				flags: MessageFlags.Ephemeral,
+			});
+			return;
+		}
+		await interaction.update(unknownFormatPage(jobId!, actorId!, Number(rawPage), ctx));
+		return;
+	}
 	if (parts[0] === "migration" && parts.length === 4) {
 		const [, jobId, actorId, token] = parts;
 		if (interaction.user.id !== actorId) {
@@ -360,6 +376,54 @@ function migrationButtons(jobId: string, actorId: string, token: string, i18n: L
 		new ButtonBuilder().setCustomId(`migration:${jobId}:${actorId}:${token}`).setLabel(i18n.t("migration.confirmButton")).setStyle(ButtonStyle.Danger),
 		new ButtonBuilder().setCustomId(`cancel-migration:${jobId}:${actorId}`).setLabel(i18n.t("migration.cancelButton")).setStyle(ButtonStyle.Secondary)
 	);
+}
+
+function unknownFormatPage(jobId: string, actorId: string, requestedPage: number, ctx: InteractionContext) {
+	const items = ctx.migrations.items(jobId).filter((item) => item.category === "UNKNOWN_FORMAT");
+	if (!items.length)
+		return {
+			content: ctx.i18n.t("migration.unknownEmpty"),
+			components: [],
+		};
+	const pageSize = 15;
+	const pageCount = Math.ceil(items.length / pageSize);
+	const page = Math.max(0, Math.min(Number.isFinite(requestedPage) ? Math.trunc(requestedPage) : 0, pageCount - 1));
+	const lines = items.slice(page * pageSize, (page + 1) * pageSize).map((item) =>
+		ctx.i18n.t("migration.unknownEntry", {
+			username: escapeDiscordMarkdown(item.usernameSnapshot),
+			userId: item.userId,
+			nickname: item.originalNickname ? escapeDiscordMarkdown(item.originalNickname) : ctx.i18n.t("migration.noNickname"),
+		})
+	);
+	const components =
+		pageCount > 1
+			? [
+					new ActionRowBuilder<ButtonBuilder>().addComponents(
+						new ButtonBuilder()
+							.setCustomId(`migration-unknown:${jobId}:${actorId}:${page - 1}`)
+							.setLabel(ctx.i18n.t("button.previous"))
+							.setStyle(ButtonStyle.Secondary)
+							.setDisabled(page === 0),
+						new ButtonBuilder()
+							.setCustomId(`migration-unknown:${jobId}:${actorId}:${page + 1}`)
+							.setLabel(ctx.i18n.t("button.next"))
+							.setStyle(ButtonStyle.Secondary)
+							.setDisabled(page === pageCount - 1)
+					),
+				]
+			: [];
+	return {
+		content: `**${ctx.i18n.t("migration.unknownTitle")}**\n${ctx.i18n.t("migration.unknownPage", {
+			page: page + 1,
+			pages: pageCount,
+			total: items.length,
+		})}\n\n${lines.join("\n")}`.slice(0, 1900),
+		components,
+	};
+}
+
+function escapeDiscordMarkdown(value: string): string {
+	return value.replace(/[\r\n]+/g, " ").replace(/([\\`*_{}\[\]()#+\-.!|>~])/g, "\\$1");
 }
 
 function localizedRegistrationStatus(status: string, i18n: Localizer): string {
