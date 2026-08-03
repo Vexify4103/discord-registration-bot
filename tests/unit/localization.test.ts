@@ -15,7 +15,15 @@ describe("German localization", () => {
 	it("uses German migration buttons and cleanup message", () => {
 		expect(i18n.t("migration.confirmButton")).toBe("Migration anwenden");
 		expect(i18n.t("migration.cancelButton")).toBe("Abbrechen");
+		expect(i18n.t("migration.paused")).toContain("pausiert");
 		expect(i18n.t("cleanup.removalDm")).toContain("sieben Tagen");
+	});
+	it("offers a German migration pause choice", () => {
+		const setup = commandDefinitions(i18n)
+			.map((command) => command.toJSON())
+			.find((command) => command.name === "registration-setup");
+		const mode = setup?.options?.find((option) => option.name === "mode");
+		expect(mode && "choices" in mode ? mode.choices : []).toContainEqual({ name: "Pausieren", value: "pause" });
 	});
 	it("formats dates in German/Berlin", () => expect(i18n.date(new Date("2026-08-03T12:00:00Z"))).toMatch(/03\.08\.2026|03\.08\.26|3\. Aug\. 2026/));
 	it("localizes command descriptions", () =>

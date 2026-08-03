@@ -20,3 +20,13 @@ Die Rollen werden nicht automatisch verändert. Die erwartete Reihenfolge ist Bo
 ## Betrieb
 
 Siehe [Deployment](docs/deployment.md) und [Backup/Wiederherstellung](docs/backup-recovery.md).
+
+### Registrierungsmigration
+
+- `/registration-setup mode:Vorschau` erstellt eine unveränderliche Vorschau und ändert noch keine Mitglieder.
+- Nach der Bestätigung mit **Migration anwenden** wird die Migration im Hintergrund verarbeitet.
+- `/registration-setup mode:Status` zeigt Fortschritt, offene Fälle, manuelle Prüfungen und Fehler.
+- `/registration-setup mode:Pausieren` stoppt die Verarbeitung nach dem bereits begonnenen Mitglied.
+- `/registration-setup mode:Fortsetzen` setzt eine pausierte Migration fort.
+
+Kann ein Riot-Konto bei der Migration nicht gefunden werden, bleibt das Mitglied in `PENDING_VERIFICATION`. Der bestehende Nickname und die Registrierungsrollen werden nicht verändert, und der Fall wird als `MANUAL_REVIEW` gespeichert. Mitglieder in diesem Zustand sind vom automatischen Cleanup ausgeschlossen.

@@ -120,8 +120,8 @@ export class MigrationWorker {
 				this.migrations.completeItem(item, "PENDING", "RIOT_TEMPORARY");
 				return;
 			}
-			this.applyUnregistered(item.userId, member.user.username, member.joinedTimestamp ?? Date.now(), job.id, item.originalNickname, job.startedBy);
-			this.migrations.completeItem(item, "UNREGISTERED", "RIOT_NOT_FOUND");
+			this.registrations.setPendingMigration(job.guildId, item.userId, member.user.username, member.joinedTimestamp ?? Date.now(), job.id, item.originalNickname);
+			this.migrations.completeItem(item, "MANUAL_REVIEW", "RIOT_NOT_FOUND_MANUAL_REVIEW");
 		} catch (error) {
 			this.logger.error({ err: error, jobId: job.id }, "Migration worker failed");
 		} finally {

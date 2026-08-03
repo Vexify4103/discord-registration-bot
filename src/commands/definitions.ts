@@ -39,6 +39,7 @@ export function commandDefinitions(i18n: Localizer) {
 					.addChoices(
 						{ name: i18n.t("command.setup.preview"), value: "preview" },
 						{ name: i18n.t("command.setup.apply"), value: "apply" },
+						{ name: i18n.t("command.setup.pause"), value: "pause" },
 						{ name: i18n.t("command.setup.resume"), value: "resume" },
 						{ name: i18n.t("command.setup.status"), value: "status" }
 					)

@@ -190,7 +190,7 @@ async function registrationReply(interaction: ChatInputCommandInteraction, resul
 
 async function handleSetup(interaction: ChatInputCommandInteraction, actor: GuildMember, ctx: InteractionContext): Promise<void> {
 	const mode = interaction.options.getString("mode", true);
-	if (["apply", "resume"].includes(mode) && !ctx.permissions.isAdministrator(actor)) {
+	if (["apply", "pause", "resume"].includes(mode) && !ctx.permissions.isAdministrator(actor)) {
 		await interaction.editReply(ctx.i18n.t("permissions.denied"));
 		return;
 	}
@@ -223,7 +223,20 @@ async function handleSetup(interaction: ChatInputCommandInteraction, actor: Guil
 		});
 		return;
 	}
+	if (mode === "pause") {
+		if (job.status !== "RUNNING") {
+			await interaction.editReply(ctx.i18n.t("migration.notRunning"));
+			return;
+		}
+		ctx.migrations.pause(job.id, "MANUAL");
+		await interaction.editReply(ctx.i18n.t("migration.paused"));
+		return;
+	}
 	if (mode === "resume") {
+		if (job.status !== "PAUSED") {
+			await interaction.editReply(ctx.i18n.t("migration.notPaused"));
+			return;
+		}
 		ctx.migrations.resume(job.id);
 		await interaction.editReply(ctx.i18n.t("migration.confirmed"));
 		return;
@@ -234,6 +247,7 @@ async function handleSetup(interaction: ChatInputCommandInteraction, actor: Guil
 			processed: job.processedMembers,
 			total: job.totalMembers,
 			pending: job.pendingMembers,
+			manual: ctx.migrations.manualReviewCount(job.id),
 			failed: job.failedMembers,
 		})
 	);

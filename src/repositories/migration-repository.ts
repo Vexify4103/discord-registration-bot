@@ -1,4 +1,4 @@
-import { and, asc, eq, lte, or } from "drizzle-orm";
+import { and, asc, count, eq, lte, or } from "drizzle-orm";
 import type { DatabaseContext } from "../database/client.js";
 import { migrationItems, migrationJobs, type MigrationItem, type MigrationJob } from "../database/schema/index.js";
 import type { LegacyParseResult } from "../parsers/legacy-nickname-parser.js";
@@ -71,6 +71,15 @@ export class MigrationRepository {
 	}
 	items(jobId: string): MigrationItem[] {
 		return this.database.db.select().from(migrationItems).where(eq(migrationItems.jobId, jobId)).orderBy(asc(migrationItems.sequence)).all();
+	}
+	manualReviewCount(jobId: string): number {
+		return (
+			this.database.db
+				.select({ value: count() })
+				.from(migrationItems)
+				.where(and(eq(migrationItems.jobId, jobId), eq(migrationItems.state, "MANUAL_REVIEW")))
+				.get()?.value ?? 0
+		);
 	}
 	next(jobId: string): MigrationItem | undefined {
 		return this.database.db
@@ -150,9 +159,8 @@ export class MigrationRepository {
 			};
 			if (outcome === "VERIFIED") updates.verifiedMembers = job.verifiedMembers + 1;
 			if (outcome === "UNREGISTERED") updates.unregisteredMembers = job.unregisteredMembers + 1;
-			if (outcome === "PENDING" && item.state !== "PENDING_RETRY") updates.pendingMembers = job.pendingMembers + 1;
-			if (outcome === "MANUAL_REVIEW") updates.pendingMembers = job.pendingMembers + 1;
-			if (outcome !== "PENDING" && item.state === "PENDING_RETRY") updates.pendingMembers = Math.max(0, job.pendingMembers - 1);
+			if ((outcome === "PENDING" || outcome === "MANUAL_REVIEW") && item.state !== "PENDING_RETRY") updates.pendingMembers = job.pendingMembers + 1;
+			if (outcome !== "PENDING" && outcome !== "MANUAL_REVIEW" && item.state === "PENDING_RETRY") updates.pendingMembers = Math.max(0, job.pendingMembers - 1);
 			if (outcome === "FAILED") updates.failedMembers = job.failedMembers + 1;
 			this.database.db.update(migrationJobs).set(updates).where(eq(migrationJobs.id, item.jobId)).run();
 		})();
