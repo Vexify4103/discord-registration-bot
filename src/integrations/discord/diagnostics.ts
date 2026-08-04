@@ -71,5 +71,29 @@ export async function diagnoseGuild(client: Client, guild: Guild, config: AppCon
 				);
 		}
 	}
+	if (config.RANK_ROLE_SYNC_ENABLED) {
+		for (const [tier, roleId] of Object.entries({
+			Unranked: config.RANK_ROLE_UNRANKED_ID,
+			Eisen: config.RANK_ROLE_IRON_ID,
+			Bronze: config.RANK_ROLE_BRONZE_ID,
+			Silber: config.RANK_ROLE_SILVER_ID,
+			Gold: config.RANK_ROLE_GOLD_ID,
+			Platin: config.RANK_ROLE_PLATINUM_ID,
+			Smaragd: config.RANK_ROLE_EMERALD_ID,
+			Diamant: config.RANK_ROLE_DIAMOND_ID,
+			Meister: config.RANK_ROLE_MASTER_ID,
+			Großmeister: config.RANK_ROLE_GRANDMASTER_ID,
+			Herausforderer: config.RANK_ROLE_CHALLENGER_ID,
+		})) {
+			const role = roleId ? guild.roles.cache.get(roleId) : undefined;
+			if (!role) {
+				errors.push(i18n.t("permissions.roleMissing", { role: `Rangrolle ${tier}` }));
+				continue;
+			}
+			if (me.roles.highest.comparePositionTo(role) <= 0)
+				errors.push(i18n.t("permissions.roleOrder", { detail: `Die Bot-Rolle muss über der Rangrolle „${role.name}“ liegen.` }));
+			if (role.permissions.has(PermissionFlagsBits.Administrator)) errors.push(i18n.t("permissions.roleAdministrator", { role: role.name }));
+		}
+	}
 	return { errors, warnings };
 }

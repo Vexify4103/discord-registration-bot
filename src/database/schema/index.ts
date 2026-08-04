@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import type { DiscordOperationType, LegacyCategory, NameVisibility, RegistrationStatus, SyncStatus } from "../../types/domain.js";
+import type { DiscordOperationType, LegacyCategory, NameVisibility, RankedDivision, RankedTier, RegistrationStatus, SyncStatus } from "../../types/domain.js";
 
 const timestamps = {
 	createdAt: integer("created_at", { mode: "number" }).notNull(),
@@ -218,8 +218,79 @@ export const workerLeases = sqliteTable("worker_leases", {
 	updatedAt: integer("updated_at", { mode: "number" }).notNull(),
 });
 
+export const leagueProfiles = sqliteTable(
+	"league_profiles",
+	{
+		guildId: text("guild_id").notNull(),
+		userId: text("user_id").notNull(),
+		puuidSnapshot: text("puuid_snapshot").notNull(),
+		summonerId: text("summoner_id"),
+		summonerLevel: integer("summoner_level"),
+		profileIconId: integer("profile_icon_id"),
+		soloTier: text("solo_tier").$type<RankedTier>(),
+		soloDivision: text("solo_division").$type<RankedDivision>(),
+		soloLeaguePoints: integer("solo_league_points"),
+		soloWins: integer("solo_wins"),
+		soloLosses: integer("solo_losses"),
+		flexTier: text("flex_tier").$type<RankedTier>(),
+		flexDivision: text("flex_division").$type<RankedDivision>(),
+		flexLeaguePoints: integer("flex_league_points"),
+		flexWins: integer("flex_wins"),
+		flexLosses: integer("flex_losses"),
+		effectiveTier: text("effective_tier").$type<RankedTier>(),
+		effectiveDivision: text("effective_division").$type<RankedDivision>(),
+		effectiveLeaguePoints: integer("effective_league_points"),
+		totalMasteryScore: integer("total_mastery_score").notNull().default(0),
+		lastStatsSyncAt: integer("last_stats_sync_at", { mode: "number" }),
+		nextStatsSyncAt: integer("next_stats_sync_at", { mode: "number" }).notNull(),
+		statsSyncStatus: text("stats_sync_status").$type<SyncStatus>().notNull().default("PENDING"),
+		statsSyncFailureCount: integer("stats_sync_failure_count").notNull().default(0),
+		lastStatsSyncErrorCode: text("last_stats_sync_error_code"),
+		createdAt: integer("created_at", { mode: "number" }).notNull(),
+		updatedAt: integer("updated_at", { mode: "number" }).notNull(),
+	},
+	(t) => [
+		primaryKey({ columns: [t.guildId, t.userId] }),
+		index("league_profiles_due_idx").on(t.statsSyncStatus, t.nextStatsSyncAt),
+		index("league_profiles_rank_idx").on(t.guildId, t.effectiveTier, t.effectiveLeaguePoints),
+	]
+);
+
+export const championMasteries = sqliteTable(
+	"champion_masteries",
+	{
+		guildId: text("guild_id").notNull(),
+		userId: text("user_id").notNull(),
+		championId: integer("champion_id").notNull(),
+		championLevel: integer("champion_level").notNull(),
+		championPoints: integer("champion_points").notNull(),
+		lastPlayTime: integer("last_play_time", { mode: "number" }).notNull(),
+		updatedAt: integer("updated_at", { mode: "number" }).notNull(),
+	},
+	(t) => [
+		primaryKey({ columns: [t.guildId, t.userId, t.championId] }),
+		index("champion_masteries_user_points_idx").on(t.guildId, t.userId, t.championPoints),
+		index("champion_masteries_champion_points_idx").on(t.guildId, t.championId, t.championPoints),
+	]
+);
+
+export const masterySnapshots = sqliteTable(
+	"mastery_snapshots",
+	{
+		id: text("id").primaryKey(),
+		guildId: text("guild_id").notNull(),
+		userId: text("user_id").notNull(),
+		championId: integer("champion_id").notNull(),
+		championPoints: integer("champion_points").notNull(),
+		capturedAt: integer("captured_at", { mode: "number" }).notNull(),
+	},
+	(t) => [index("mastery_snapshots_chart_idx").on(t.guildId, t.userId, t.championId, t.capturedAt)]
+);
+
 export type Registration = typeof registrations.$inferSelect;
 export type NewRegistration = typeof registrations.$inferInsert;
 export type PendingOperation = typeof pendingOperations.$inferSelect;
 export type MigrationJob = typeof migrationJobs.$inferSelect;
 export type MigrationItem = typeof migrationItems.$inferSelect;
+export type LeagueProfile = typeof leagueProfiles.$inferSelect;
+export type ChampionMasteryRow = typeof championMasteries.$inferSelect;

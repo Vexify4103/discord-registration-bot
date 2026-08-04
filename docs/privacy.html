@@ -34,6 +34,8 @@
 					<li>Registrierungsstatus, zugewiesene Registrierungsrollen und Synchronisierungsstatus;</li>
 					<li>freiwillig angegebener persönlicher Anzeigename, sofern die sichtbare Namensdarstellung gewählt wird;</li>
 					<li>Riot-PUUID, kanonischer Riot-Name und Tag, Plattformregion, Routing-Gruppe und OP.GG-Profillink;</li>
+					<li>League-Summoner-ID, Profillevel, Profilsymbol, Solo-/Flex-Rang, Ligapunkte, Siege und Niederlagen;</li>
+					<li>Champion-ID, Mastery-Stufe, Mastery-Punkte, letzter Spielzeitpunkt sowie zeitlich begrenzte Mastery-Snapshots für Diagramme und Bestenlisten;</li>
 					<li>Zeitpunkte und technische Ergebniskennungen von Registrierung, Migration, Rollen-, Nickname- und Riot-Synchronisierung;</li>
 					<li>Auditdaten zu administrativen und automatisierten Aktionen.</li>
 				</ul>
@@ -43,19 +45,21 @@
 			<section>
 				<h2>3. Herkunft und Zwecke</h2>
 				<p>
-					Daten stammen aus Discord, aus Angaben über Slash-Commands und aus Antworten der Riot Account API. Sie werden ausschließlich verwendet, um Mitgliedschaften zu
-					registrieren, Riot-Identitäten anhand der dauerhaften PUUID zu verifizieren, Rollen und Nicknames abzugleichen, Migrations- und Fehlerzustände sicher
-					fortzusetzen und Missbrauch zu verhindern. Nicht registrierte Mitglieder werden nur dann nach einer Frist entfernt, wenn der Serverbetreiber diese optionale
-					Funktion ausdrücklich aktiviert hat.
+					Daten stammen aus Discord, aus Angaben über Slash-Commands beziehungsweise ausdrücklich an den Bot gerichteten Mention-Befehlen und aus Antworten der Riot
+					Account-, Summoner-, League- und Champion-Mastery-APIs. Mention-Nachrichten werden nur zur unmittelbaren Befehlsausführung verarbeitet und nicht als Chatverlauf
+					gespeichert. Die Daten werden ausschließlich verwendet, um Mitgliedschaften zu registrieren, Riot-Identitäten anhand der dauerhaften PUUID zu verifizieren,
+					Rollen und Nicknames abzugleichen, Migrations- und Fehlerzustände sicher fortzusetzen und Missbrauch zu verhindern. Nicht registrierte Mitglieder werden nur
+					dann nach einer Frist entfernt, wenn der Serverbetreiber diese optionale Funktion ausdrücklich aktiviert hat.
 				</p>
 			</section>
 
 			<section>
 				<h2>4. Dienste Dritter</h2>
 				<p>
-					Der Bot kommuniziert mit Discord zur Bereitstellung von Commands, Rollen, Nicknames, Direktnachrichten und Mitgliedschaftsfunktionen sowie mit der Riot Games
-					Account API zur Verifizierung und Aktualisierung von Riot-Identitäten. OP.GG-Links werden validiert und normalisiert; der Bot ruft zur Registrierung keine
-					Profildaten von OP.GG ab. Für die jeweiligen Plattformen gelten zusätzlich deren eigene Datenschutzbestimmungen.
+					Der Bot kommuniziert mit Discord zur Bereitstellung von Commands, Rollen, Nicknames, Direktnachrichten und Mitgliedschaftsfunktionen sowie mit den Riot Games
+					Account-, Summoner-, League- und Champion-Mastery-APIs zur Verifizierung und Aktualisierung von Riot-Identitäten und Spielprofildaten. OP.GG-Links werden
+					validiert und normalisiert; der Bot ruft zur Registrierung keine Profildaten von OP.GG ab. Für die jeweiligen Plattformen gelten zusätzlich deren eigene
+					Datenschutzbestimmungen.
 				</p>
 				<p><a href="https://discord.com/privacy">Discord-Datenschutz</a> · <a href="https://www.riotgames.com/en/privacy-notice">Riot Games-Datenschutz</a></p>
 			</section>

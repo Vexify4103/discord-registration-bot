@@ -1,5 +1,5 @@
 import type { Registration } from "../database/schema/index.js";
-import type { DiscordOperationType, RoleIds } from "../types/domain.js";
+import type { DiscordOperationType, RankedTier, RankRoleIds, RankRoleKey, RoleIds } from "../types/domain.js";
 import { NicknameService } from "./nickname-service.js";
 
 export interface MemberSnapshot {
@@ -23,10 +23,11 @@ export interface ReconciliationPlan {
 export class MemberStateReconciler {
 	constructor(
 		private readonly roles: RoleIds,
-		private readonly nicknames: NicknameService
+		private readonly nicknames: NicknameService,
+		private readonly rankRoles: RankRoleIds = {}
 	) {}
 
-	plan(registration: Registration, member: MemberSnapshot): ReconciliationPlan {
+	plan(registration: Registration, member: MemberSnapshot, effectiveTier: RankedTier | null | undefined = undefined): ReconciliationPlan {
 		if (!member.manageable)
 			return {
 				manageable: false,
@@ -75,6 +76,16 @@ export class MemberStateReconciler {
 			if (!member.roleIds.has(this.roles.unregistered)) operations.push({ type: "ADD_UNREGISTERED_ROLE" });
 		}
 		if (member.nickname !== expectedNickname) operations.push({ type: "SET_NICKNAME", value: expectedNickname });
+		this.planRankRoles(registration, member, effectiveTier, operations);
 		return { manageable: true, preserve: false, expectedNickname, operations };
+	}
+
+	private planRankRoles(registration: Registration, member: MemberSnapshot, effectiveTier: RankedTier | null | undefined, operations: PlannedDiscordOperation[]): void {
+		const configured = Object.entries(this.rankRoles) as Array<[RankRoleKey, string]>;
+		if (!configured.length) return;
+		if (registration.status === "REGISTERED" && effectiveTier === undefined) return;
+		const desired = registration.status === "REGISTERED" && effectiveTier !== undefined ? this.rankRoles[effectiveTier ?? "UNRANKED"] : undefined;
+		for (const [, roleId] of configured) if (roleId !== desired && member.roleIds.has(roleId)) operations.push({ type: "REMOVE_RANK_ROLE", value: roleId });
+		if (desired && !member.roleIds.has(desired)) operations.push({ type: "ADD_RANK_ROLE", value: desired });
 	}
 }

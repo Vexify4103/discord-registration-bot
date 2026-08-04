@@ -27,6 +27,8 @@ export const discordOperationTypes = [
 	"REMOVE_VERIFIED_PRIVATE_ROLE",
 	"ADD_UNREGISTERED_ROLE",
 	"REMOVE_UNREGISTERED_ROLE",
+	"ADD_RANK_ROLE",
+	"REMOVE_RANK_ROLE",
 	"KICK_MEMBER",
 	"SEND_DM",
 ] as const;
@@ -60,4 +62,27 @@ export interface RoleIds {
 	named: string;
 	private: string;
 	unregistered: string;
+}
+
+export const rankedTiers = ["IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD", "DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER"] as const;
+export type RankedTier = (typeof rankedTiers)[number];
+export type RankRoleKey = RankedTier | "UNRANKED";
+export type RankedDivision = "IV" | "III" | "II" | "I";
+export type RankedQueue = "RANKED_SOLO_5x5" | "RANKED_FLEX_SR";
+export type RankRoleIds = Partial<Record<RankRoleKey, string>>;
+
+export interface RankedEntry {
+	queueType: RankedQueue;
+	tier: RankedTier;
+	rank: RankedDivision;
+	leaguePoints: number;
+	wins: number;
+	losses: number;
+}
+
+export interface ChampionMastery {
+	championId: number;
+	championLevel: number;
+	championPoints: number;
+	lastPlayTime: number;
 }

@@ -28,4 +28,16 @@ describe("migration policy configuration", () => {
 describe("bot presence configuration", () => {
 	it("uses a German activity by default", () => expect(configSchema.parse(requiredEnvironment).BOT_ACTIVITY_TEXT).toBe("Rollen-Tetris"));
 	it("rejects an empty activity", () => expect(() => configSchema.parse({ ...requiredEnvironment, BOT_ACTIVITY_TEXT: " " })).toThrow());
+	it("keeps mention commands opt-in", () => expect(configSchema.parse(requiredEnvironment).BOT_MENTION_COMMANDS_ENABLED).toBe(false));
+});
+
+describe("rank role configuration", () => {
+	it("allows the feature to remain disabled without role IDs", () => expect(configSchema.parse(requiredEnvironment).RANK_ROLE_SYNC_ENABLED).toBe(false));
+	it("requires every distinct tier role when enabled", () =>
+		expect(() => configSchema.parse({ ...requiredEnvironment, RANK_ROLE_SYNC_ENABLED: "true", RANK_ROLE_IRON_ID: "100000000000000010" })).toThrow());
+	it("accepts an unranked role plus all ten ranked tier roles", () => {
+		const roleKeys = ["UNRANKED", "IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD", "DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER"];
+		const roles = Object.fromEntries(roleKeys.map((key, index) => [`RANK_ROLE_${key}_ID`, `1000000000000000${String(index + 10).padStart(2, "0")}`]));
+		expect(configSchema.parse({ ...requiredEnvironment, RANK_ROLE_SYNC_ENABLED: "true", ...roles }).RANK_ROLE_UNRANKED_ID).toBe("100000000000000010");
+	});
 });

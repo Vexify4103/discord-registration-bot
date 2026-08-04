@@ -1,6 +1,16 @@
 import { and, asc, eq, gt, isNotNull, lt, lte, ne, sql } from "drizzle-orm";
 import type { DatabaseContext } from "../database/client.js";
-import { auditEvents, pendingOperations, registrationAttempts, registrations, retainedRegistrationData, type Registration } from "../database/schema/index.js";
+import {
+	auditEvents,
+	championMasteries,
+	leagueProfiles,
+	masterySnapshots,
+	pendingOperations,
+	registrationAttempts,
+	registrations,
+	retainedRegistrationData,
+	type Registration,
+} from "../database/schema/index.js";
 import type { DiscordOperationType, NameVisibility, RegistrationIdentity } from "../types/domain.js";
 import { operationPriorities } from "../types/domain.js";
 import { buildOpggUrl } from "../parsers/opgg-parser.js";
@@ -498,6 +508,18 @@ export class RegistrationRepository {
 	deletePersonalData(guildId: string, userId: string, actorUserId: string, now = Date.now()): void {
 		this.database.sqlite.transaction(() => {
 			this.database.db
+				.delete(masterySnapshots)
+				.where(and(eq(masterySnapshots.guildId, guildId), eq(masterySnapshots.userId, userId)))
+				.run();
+			this.database.db
+				.delete(championMasteries)
+				.where(and(eq(championMasteries.guildId, guildId), eq(championMasteries.userId, userId)))
+				.run();
+			this.database.db
+				.delete(leagueProfiles)
+				.where(and(eq(leagueProfiles.guildId, guildId), eq(leagueProfiles.userId, userId)))
+				.run();
+			this.database.db
 				.delete(retainedRegistrationData)
 				.where(and(eq(retainedRegistrationData.guildId, guildId), eq(retainedRegistrationData.userId, userId)))
 				.run();
@@ -581,10 +603,24 @@ export class RegistrationRepository {
 			.where(and(eq(registrations.isPresent, false), isNotNull(registrations.retentionExpiresAt), lte(registrations.retentionExpiresAt, now)))
 			.all();
 		for (const row of expired)
-			this.database.db
-				.delete(registrations)
-				.where(and(eq(registrations.guildId, row.guildId), eq(registrations.userId, row.userId)))
-				.run();
+			this.database.sqlite.transaction(() => {
+				this.database.db
+					.delete(masterySnapshots)
+					.where(and(eq(masterySnapshots.guildId, row.guildId), eq(masterySnapshots.userId, row.userId)))
+					.run();
+				this.database.db
+					.delete(championMasteries)
+					.where(and(eq(championMasteries.guildId, row.guildId), eq(championMasteries.userId, row.userId)))
+					.run();
+				this.database.db
+					.delete(leagueProfiles)
+					.where(and(eq(leagueProfiles.guildId, row.guildId), eq(leagueProfiles.userId, row.userId)))
+					.run();
+				this.database.db
+					.delete(registrations)
+					.where(and(eq(registrations.guildId, row.guildId), eq(registrations.userId, row.userId)))
+					.run();
+			})();
 		this.database.db.delete(registrationAttempts).where(lt(registrationAttempts.expiresAt, now)).run();
 		return deleted + expired.length;
 	}
@@ -628,7 +664,7 @@ export class RegistrationRepository {
 			.run();
 	}
 
-	requestReconciliation(guildId: string, userId: string, priority = operationPriorities.REPAIR, now = Date.now()): boolean {
+	requestReconciliation(guildId: string, userId: string, priority: number = operationPriorities.REPAIR, now = Date.now()): boolean {
 		const row = this.get(guildId, userId);
 		if (!row) return false;
 		this.enqueueReconcile(guildId, userId, row.stateVersion, priority, now);

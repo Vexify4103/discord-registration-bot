@@ -13,4 +13,22 @@ Unterstützt werden Raspberry Pi 4/5 mit 64-Bit Raspberry Pi OS, Node.js 24 LTS 
 
 Die Bot-Rolle benötigt zusätzlich **Audit-Log anzeigen**, damit manuelle Nickname-Änderungen ausschließlich dann als Registrierungsänderung übernommen werden, wenn Discord sie einem berechtigten Staff-Mitglied zuordnet.
 
+Für die League-Erweiterung werden alle `RANK_ROLE_*_ID`-Werte aus `.env.example` mit den bestehenden Discord-Rollen befüllt und anschließend `RANK_ROLE_SYNC_ENABLED=true` gesetzt. Die Unranked-Rolle und alle zehn Rangrollen müssen eindeutige IDs haben; die Bot-Rolle muss über ihnen stehen. Mit `JOIN_ENGAGEMENT_ENABLED=true` erhalten neue, nicht registrierte Mitglieder eine Willkommens-DM. `BOT_MENTION_COMMANDS_ENABLED=true` aktiviert zusätzlich `@Bot ...`-Befehle; dafür muss im Discord Developer Portal unter **Bot → Privileged Gateway Intents** der **Message Content Intent** eingeschaltet sein. `RIOT_SYNC_MIN_DELAY_MS=1250` ist für einen persönlichen Schlüssel mit 100 Anfragen pro zwei Minuten die sichere Mindestkonfiguration.
+
+Nach dem Update in dieser Reihenfolge ausführen:
+
+```bash
+pm2 stop GamingCommunity
+npm ci
+npm run build
+npm run db:migrate
+npm test
+pm2 start GamingCommunity
+npx pm2 save
+```
+
+Vor `db:migrate` immer `data/bot.sqlite`, `data/bot.sqlite-wal` und `data/bot.sqlite-shm` konsistent sichern oder den vorhandenen Backup-Befehl verwenden. Beim ersten Start werden Rang und Mastery gestaffelt eingelesen; bei rund 930 Konten dauert der initiale Durchlauf mit einem persönlichen Riot-Schlüssel erwartungsgemäß ungefähr ein bis zwei Stunden. Aktive Registrierungen und manuell angeforderte Aktualisierungen haben in der Riot-Warteschlange Vorrang.
+
+Der Start protokolliert den Rangrollen-Sweep mit `registeredQueued`, `cleanupQueued`, `pendingPreserved` und `botsIgnored`. Anschließend meldet jeder Riot-Batch `batchSize`, `succeeded` und `failed`. Ein Neustart ist sicher: offene Discord-Operationen sind dedupliziert, und der Sweep kann beliebig oft wiederholt werden.
+
 Updates erfolgen nur bei gestopptem Dienst nach einem verifizierten Backup. Bei Fehlern wird der vorherige Release-Symlink reaktiviert; bei inkompatibler Migration wird zusätzlich das unmittelbar vorher erstellte Backup wiederhergestellt.

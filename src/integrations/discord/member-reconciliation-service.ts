@@ -6,6 +6,7 @@ import type { PlannedDiscordOperation } from "../../services/member-state-reconc
 import { MemberStateReconciler } from "../../services/member-state-reconciler.js";
 import { AuditRepository } from "../../repositories/audit-repository.js";
 import { Localizer } from "../../localization/formatter.js";
+import { LeagueRepository } from "../../repositories/league-repository.js";
 
 export type DiscordMutationResult = { kind: "success" | "no-op" } | { kind: "retryable" | "permanent"; code: string };
 
@@ -14,6 +15,7 @@ export class MemberReconciliationService {
 		private readonly client: Client,
 		private readonly config: AppConfig,
 		private readonly registrations: RegistrationRepository,
+		private readonly league: LeagueRepository,
 		private readonly reconciler: MemberStateReconciler,
 		private readonly audits: AuditRepository,
 		private readonly i18n: Localizer,
@@ -26,13 +28,18 @@ export class MemberReconciliationService {
 		try {
 			const guild = await this.client.guilds.fetch(guildId);
 			const member = await guild.members.fetch(userId);
-			const plan = this.reconciler.plan(registration, {
-				userId,
-				username: member.user.username,
-				nickname: member.nickname,
-				roleIds: new Set(member.roles.cache.keys()),
-				manageable: member.manageable && userId !== guild.ownerId && !member.user.bot,
-			});
+			const leagueProfile = this.league.profile(guildId, userId);
+			const plan = this.reconciler.plan(
+				registration,
+				{
+					userId,
+					username: member.user.username,
+					nickname: member.nickname,
+					roleIds: new Set(member.roles.cache.keys()),
+					manageable: member.manageable && userId !== guild.ownerId && !member.user.bot,
+				},
+				leagueProfile?.puuidSnapshot === registration.puuid && leagueProfile.lastStatsSyncAt ? leagueProfile.effectiveTier : undefined
+			);
 			if (!plan.manageable) return { kind: "permanent", code: "MEMBER_NOT_MANAGEABLE" };
 			if (!plan.operations.length) return { kind: "no-op" };
 			let rolesChanged = false;
@@ -81,6 +88,12 @@ export class MemberReconciliationService {
 			if (operation.type === "SET_NICKNAME") {
 				if (member.nickname === operation.value) return { kind: "no-op" };
 				await member.setNickname(operation.value!, this.i18n.t("audit.reconciliationReason"));
+			} else if (operation.type === "ADD_RANK_ROLE" || operation.type === "REMOVE_RANK_ROLE") {
+				if (!operation.value || !configuredRankRoleIds(this.config).has(operation.value)) return { kind: "permanent", code: "INVALID_RANK_ROLE" };
+				const add = operation.type === "ADD_RANK_ROLE";
+				if (add === member.roles.cache.has(operation.value)) return { kind: "no-op" };
+				if (add) await member.roles.add(operation.value, this.i18n.t("audit.rankReconciliationReason"));
+				else await member.roles.remove(operation.value, this.i18n.t("audit.rankReconciliationReason"));
 			} else if (operation.type in roleMap) {
 				const roleId = roleMap[operation.type as keyof typeof roleMap];
 				const add = operation.type.startsWith("ADD_");
@@ -93,6 +106,24 @@ export class MemberReconciliationService {
 			return classifyDiscordError(error);
 		}
 	}
+}
+
+function configuredRankRoleIds(config: AppConfig): ReadonlySet<string> {
+	return new Set(
+		[
+			config.RANK_ROLE_UNRANKED_ID,
+			config.RANK_ROLE_IRON_ID,
+			config.RANK_ROLE_BRONZE_ID,
+			config.RANK_ROLE_SILVER_ID,
+			config.RANK_ROLE_GOLD_ID,
+			config.RANK_ROLE_PLATINUM_ID,
+			config.RANK_ROLE_EMERALD_ID,
+			config.RANK_ROLE_DIAMOND_ID,
+			config.RANK_ROLE_MASTER_ID,
+			config.RANK_ROLE_GRANDMASTER_ID,
+			config.RANK_ROLE_CHALLENGER_ID,
+		].filter((id): id is string => Boolean(id))
+	);
 }
 
 export function classifyDiscordError(error: unknown): {

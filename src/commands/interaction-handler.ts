@@ -21,6 +21,10 @@ import { RegistrationService, type RegistrationResult } from "../services/regist
 import { manualReviewMessage, migrationStatusMessage } from "../services/migration-status-presenter.js";
 import { RiotSyncWorker } from "../jobs/riot-sync-worker.js";
 import { diagnoseGuild } from "../integrations/discord/diagnostics.js";
+import { handleLeagueCommand } from "./league-command-handler.js";
+import { LeagueRepository } from "../repositories/league-repository.js";
+import { LeagueStatsWorker } from "../jobs/league-stats-worker.js";
+import { ChampionCatalog } from "../integrations/riot/champion-catalog.js";
 
 export interface InteractionContext {
 	client: Client;
@@ -34,6 +38,9 @@ export interface InteractionContext {
 	migrationService: MigrationService;
 	migrations: MigrationRepository;
 	riotSync: RiotSyncWorker;
+	league: LeagueRepository;
+	leagueStats: LeagueStatsWorker;
+	champions: ChampionCatalog;
 }
 
 export async function handleInteraction(interaction: Interaction, context: InteractionContext): Promise<void> {
@@ -54,9 +61,13 @@ export async function handleInteraction(interaction: Interaction, context: Inter
 }
 
 async function handleCommand(interaction: ChatInputCommandInteraction, ctx: InteractionContext): Promise<void> {
-	await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+	await interaction.deferReply(interaction.commandName === "league" ? {} : { flags: MessageFlags.Ephemeral });
 	if (interaction.guildId !== ctx.config.DISCORD_GUILD_ID || !interaction.guild) {
 		await interaction.editReply(ctx.i18n.t("registration.notInGuild"));
+		return;
+	}
+	if (interaction.commandName === "league") {
+		await handleLeagueCommand(interaction, ctx);
 		return;
 	}
 	const actor = await interaction.guild.members.fetch(interaction.user.id);

@@ -48,6 +48,30 @@ const base = {
 const service = new MemberStateReconciler({ named: "named", private: "private", unregistered: "unreg" }, new NicknameService());
 
 describe("MemberStateReconciler", () => {
+	it("keeps exactly the role matching the highest non-TFT rank", () => {
+		const ranked = new MemberStateReconciler({ named: "named", private: "private", unregistered: "unreg" }, new NicknameService(), {
+			GOLD: "gold",
+			PLATINUM: "platinum",
+			DIAMOND: "diamond",
+		});
+		expect(
+			ranked.plan(base, { userId: "2", username: "d", nickname: "Martin | Game#EUW", roleIds: new Set(["named", "gold", "diamond"]), manageable: true }, "PLATINUM")
+				.operations
+		).toEqual([
+			{ type: "REMOVE_RANK_ROLE", value: "gold" },
+			{ type: "REMOVE_RANK_ROLE", value: "diamond" },
+			{ type: "ADD_RANK_ROLE", value: "platinum" },
+		]);
+	});
+	it("assigns the configured unranked role only after a confirmed empty rank result", () => {
+		const ranked = new MemberStateReconciler({ named: "named", private: "private", unregistered: "unreg" }, new NicknameService(), { UNRANKED: "rank-unranked", GOLD: "gold" });
+		const member = { userId: "2", username: "d", nickname: "Martin | Game#EUW", roleIds: new Set(["named", "gold"]), manageable: true };
+		expect(ranked.plan(base, member, null).operations).toEqual([
+			{ type: "REMOVE_RANK_ROLE", value: "gold" },
+			{ type: "ADD_RANK_ROLE", value: "rank-unranked" },
+		]);
+		expect(ranked.plan(base, member, undefined).operations).toEqual([]);
+	});
 	it("visible member receives only named role and repairs both-role state", () =>
 		expect(
 			service

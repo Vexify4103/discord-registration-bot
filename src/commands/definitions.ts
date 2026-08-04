@@ -48,5 +48,54 @@ export function commandDefinitions(i18n: Localizer) {
 						{ name: i18n.t("command.setup.status"), value: "status" }
 					)
 			),
+		new SlashCommandBuilder()
+			.setName("league")
+			.setDescription(i18n.t("command.league.description"))
+			.addSubcommand((s) =>
+				s
+					.setName("profile")
+					.setDescription(i18n.t("command.league.profile"))
+					.addUserOption((o) => o.setName("member").setDescription(i18n.t("command.league.member")))
+			)
+			.addSubcommand((s) =>
+				s
+					.setName("mastery")
+					.setDescription(i18n.t("command.league.mastery"))
+					.addUserOption((o) => o.setName("member").setDescription(i18n.t("command.league.member")))
+			)
+			.addSubcommand((s) =>
+				s
+					.setName("chart")
+					.setDescription(i18n.t("command.league.chart"))
+					.addStringOption((o) => o.setName("champion").setDescription(i18n.t("command.league.champion")).setRequired(true).setMaxLength(40))
+					.addUserOption((o) => o.setName("member").setDescription(i18n.t("command.league.member")))
+			)
+			.addSubcommand((s) =>
+				s
+					.setName("top")
+					.setDescription(i18n.t("command.league.top"))
+					.addStringOption((o) =>
+						o
+							.setName("type")
+							.setDescription(i18n.t("command.league.topType"))
+							.setRequired(true)
+							.addChoices({ name: i18n.t("command.league.topTotal"), value: "total" }, { name: i18n.t("command.league.topChampion"), value: "champion" })
+					)
+					.addStringOption((o) => o.setName("champion").setDescription(i18n.t("command.league.champion")).setMaxLength(40))
+			)
+			.addSubcommand((s) =>
+				s
+					.setName("refresh")
+					.setDescription(i18n.t("command.league.refresh"))
+					.addUserOption((o) => o.setName("member").setDescription(i18n.t("command.league.member")))
+			)
+			.addSubcommand((s) =>
+				s
+					.setName("roles")
+					.setDescription(i18n.t("command.league.roles"))
+					.addUserOption((o) => o.setName("member").setDescription(i18n.t("command.league.member")))
+			)
+			.addSubcommand((s) => s.setName("help").setDescription(i18n.t("command.league.help")))
+			.addSubcommand((s) => s.setName("about").setDescription(i18n.t("command.league.about"))),
 	];
 }

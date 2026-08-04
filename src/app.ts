@@ -33,6 +33,13 @@ import { NicknameService } from "./services/nickname-service.js";
 import { PermissionService } from "./services/permission-service.js";
 import { RegistrationService } from "./services/registration-service.js";
 import { AdministrativeNicknameService } from "./services/administrative-nickname-service.js";
+import { LeagueRepository } from "./repositories/league-repository.js";
+import { RiotLeagueService } from "./integrations/riot/riot-league-service.js";
+import { LeagueStatsWorker } from "./jobs/league-stats-worker.js";
+import { ChampionCatalog } from "./integrations/riot/champion-catalog.js";
+import type { RankRoleIds, RankRoleKey } from "./types/domain.js";
+import { createLeagueMentionHandler } from "./commands/league-mention-handler.js";
+import { RankRoleStartupSweep } from "./services/rank-role-startup-sweep.js";
 
 export class BotApplication {
 	private readonly database: DatabaseContext;
@@ -40,6 +47,7 @@ export class BotApplication {
 	private readonly discordQueue: DiscordMemberMutationQueue;
 	private readonly riotQueue: RiotRequestQueue;
 	private readonly workers: Array<{ start(): void; stop(): void }>;
+	private readonly rankRoleSweep: RankRoleStartupSweep;
 	private stopping = false;
 
 	constructor(
@@ -51,11 +59,13 @@ export class BotApplication {
 			migrationsFolder: "./src/database/migrations",
 		});
 		assertDatabaseHealthy(this.database);
-		this.client = new Client({
-			intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
-		});
+		const intents = [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers];
+		if (config.BOT_MENTION_COMMANDS_ENABLED) intents.push(GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent);
+		this.client = new Client({ intents });
 		const i18n = new Localizer(config.BOT_LOCALE, config.BOT_TIME_ZONE);
 		const registrations = new RegistrationRepository(this.database, config.REGISTRATION_DATA_RETENTION_DAYS);
+		this.rankRoleSweep = new RankRoleStartupSweep(registrations, logger);
+		const league = new LeagueRepository(this.database);
 		const operations = new PendingOperationRepository(this.database);
 		const migrations = new MigrationRepository(this.database);
 		const audits = new AuditRepository(this.database);
@@ -68,22 +78,27 @@ export class BotApplication {
 				private: config.VERIFIED_PRIVATE_ROLE_ID,
 				unregistered: config.UNREGISTERED_ROLE_ID,
 			},
-			nicknames
+			nicknames,
+			rankRoleIds(config)
 		);
-		const reconciliation = new MemberReconciliationService(this.client, config, registrations, reconciler, audits, i18n, logger);
+		const reconciliation = new MemberReconciliationService(this.client, config, registrations, league, reconciler, audits, i18n, logger);
 		this.discordQueue = new DiscordMemberMutationQueue(config.DISCORD_MEMBER_MUTATION_CONCURRENCY, config.DISCORD_MEMBER_MUTATION_MIN_DELAY_MS);
 		this.riotQueue = new RiotRequestQueue(config.RIOT_SYNC_MIN_DELAY_MS);
 		const riot = new RiotAccountService(config.RIOT_API_KEY, this.riotQueue, config.RIOT_SYNC_MAX_RETRIES, logger);
+		const riotLeague = new RiotLeagueService(config.RIOT_API_KEY, this.riotQueue, config.RIOT_SYNC_MAX_RETRIES, logger);
+		const champions = new ChampionCatalog(logger);
 		const registrationService = new RegistrationService(registrations, new OpggParser(), riot, logger);
 		const administrativeNicknameParser = new AdministrativeNicknameParser();
 		const administrativeNicknameService = new AdministrativeNicknameService(config, registrations, riot, logger);
 		const migrationService = new MigrationService(config, new LegacyNicknameParser(config.LEGACY_ALLOW_WHITESPACE_VARIATIONS), migrations, permissions, audits);
 		const riotSync = new RiotSyncWorker(config, registrations, riot, leases, logger);
+		const leagueStats = new LeagueStatsWorker(config, league, registrations, riotLeague, leases, logger);
 		this.workers = [
 			new DiscordOperationWorker(config, operations, this.discordQueue, reconciliation, leases, logger),
 			new MigrationWorker(this.client, config, migrations, registrations, riot, leases, logger),
 			new CleanupWorker(this.client, config, registrations, permissions, this.discordQueue, i18n, leases, audits, logger),
 			riotSync,
+			leagueStats,
 			new RetentionWorker(registrations, audits, leases, logger),
 		];
 		const interactionContext = {
@@ -98,9 +113,13 @@ export class BotApplication {
 			migrationService,
 			migrations,
 			riotSync,
+			league,
+			leagueStats,
+			champions,
 		};
 		this.client.on(Events.InteractionCreate, (interaction) => void handleInteraction(interaction, interactionContext));
-		this.client.on(Events.GuildMemberAdd, createGuildMemberAddHandler(registrations, reconciliation, audits, logger));
+		this.client.on(Events.MessageCreate, createLeagueMentionHandler(interactionContext, logger));
+		this.client.on(Events.GuildMemberAdd, createGuildMemberAddHandler(registrations, reconciliation, audits, logger, i18n, config.JOIN_ENGAGEMENT_ENABLED));
 		this.client.on(Events.GuildMemberRemove, createGuildMemberRemoveHandler(registrations, audits, logger));
 		this.client.on(
 			Events.GuildMemberUpdate,
@@ -123,6 +142,10 @@ export class BotApplication {
 		const diagnostics = await diagnoseGuild(this.client, guild, this.config, new Localizer(this.config.BOT_LOCALE, this.config.BOT_TIME_ZONE));
 		for (const warning of diagnostics.warnings) this.logger.warn({ diagnostic: warning }, "Discord role diagnostic warning");
 		if (diagnostics.errors.length) throw new Error(`Discord diagnostics failed:\n${diagnostics.errors.join("\n")}`);
+		if (this.config.RANK_ROLE_SYNC_ENABLED) {
+			const members = await guild.members.fetch();
+			this.rankRoleSweep.run(guild.id, members);
+		}
 		await guild.commands.set(commandDefinitions(new Localizer(this.config.BOT_LOCALE, this.config.BOT_TIME_ZONE)).map((command) => command.toJSON()));
 		this.client.user?.setPresence({
 			status: "online",
@@ -145,4 +168,10 @@ export class BotApplication {
 		this.database.sqlite.close();
 		this.logger.info("Graceful shutdown completed");
 	}
+}
+
+function rankRoleIds(config: AppConfig): RankRoleIds {
+	if (!config.RANK_ROLE_SYNC_ENABLED) return {};
+	const tiers: RankRoleKey[] = ["UNRANKED", "IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD", "DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER"];
+	return Object.fromEntries(tiers.map((tier) => [tier, config[`RANK_ROLE_${tier}_ID` as keyof AppConfig]])) as RankRoleIds;
 }

@@ -17,6 +17,7 @@ const csv = z
 				.filter(Boolean) ?? []
 	);
 const snowflake = z.string().regex(/^\d{15,22}$/);
+const optionalSnowflake = z.preprocess((value) => (value === "" ? undefined : value), snowflake.optional());
 
 export const configSchema = z
 	.object({
@@ -46,7 +47,7 @@ export const configSchema = z
 		RIOT_SYNC_INTERVAL_DAYS: integer(7, 1),
 		RIOT_SYNC_WORKER_INTERVAL_MINUTES: integer(30, 1),
 		RIOT_SYNC_BATCH_SIZE: integer(10, 1),
-		RIOT_SYNC_MIN_DELAY_MS: integer(1000, 0),
+		RIOT_SYNC_MIN_DELAY_MS: integer(1250, 0),
 		RIOT_SYNC_MAX_RETRIES: integer(3, 0),
 		DISCORD_MEMBER_MUTATION_CONCURRENCY: integer(1, 1),
 		DISCORD_MEMBER_MUTATION_MIN_DELAY_MS: integer(250, 0),
@@ -57,6 +58,24 @@ export const configSchema = z
 		BOT_LOCALE: z.literal("de-DE").default("de-DE"),
 		BOT_TIME_ZONE: z.string().default("Europe/Berlin"),
 		BOT_ACTIVITY_TEXT: z.string().trim().min(1).max(128).default("Rollen-Tetris"),
+		JOIN_ENGAGEMENT_ENABLED: bool(true),
+		BOT_MENTION_COMMANDS_ENABLED: bool(false),
+		LEAGUE_STATS_ENABLED: bool(true),
+		LEAGUE_STATS_SYNC_INTERVAL_HOURS: integer(24, 1),
+		LEAGUE_STATS_WORKER_INTERVAL_MINUTES: integer(1, 1),
+		LEAGUE_STATS_BATCH_SIZE: integer(20, 1),
+		RANK_ROLE_SYNC_ENABLED: bool(false),
+		RANK_ROLE_UNRANKED_ID: optionalSnowflake,
+		RANK_ROLE_IRON_ID: optionalSnowflake,
+		RANK_ROLE_BRONZE_ID: optionalSnowflake,
+		RANK_ROLE_SILVER_ID: optionalSnowflake,
+		RANK_ROLE_GOLD_ID: optionalSnowflake,
+		RANK_ROLE_PLATINUM_ID: optionalSnowflake,
+		RANK_ROLE_EMERALD_ID: optionalSnowflake,
+		RANK_ROLE_DIAMOND_ID: optionalSnowflake,
+		RANK_ROLE_MASTER_ID: optionalSnowflake,
+		RANK_ROLE_GRANDMASTER_ID: optionalSnowflake,
+		RANK_ROLE_CHALLENGER_ID: optionalSnowflake,
 		LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
 	})
 	.superRefine((value, ctx) => {
@@ -84,6 +103,28 @@ export const configSchema = z
 					message: `${key} enthält eine ungültige ID.`,
 				});
 		}
+		const rankRoleIds = [
+			value.RANK_ROLE_UNRANKED_ID,
+			value.RANK_ROLE_IRON_ID,
+			value.RANK_ROLE_BRONZE_ID,
+			value.RANK_ROLE_SILVER_ID,
+			value.RANK_ROLE_GOLD_ID,
+			value.RANK_ROLE_PLATINUM_ID,
+			value.RANK_ROLE_EMERALD_ID,
+			value.RANK_ROLE_DIAMOND_ID,
+			value.RANK_ROLE_MASTER_ID,
+			value.RANK_ROLE_GRANDMASTER_ID,
+			value.RANK_ROLE_CHALLENGER_ID,
+		];
+		if (value.RANK_ROLE_SYNC_ENABLED && rankRoleIds.some((id) => !id))
+			ctx.addIssue({
+				code: "custom",
+				path: ["RANK_ROLE_SYNC_ENABLED"],
+				message: "Bei aktivierter Rangrollensynchronisierung müssen die Unranked-Rolle und alle zehn Rangrollen gesetzt sein.",
+			});
+		const configuredRankIds = rankRoleIds.filter((id): id is string => Boolean(id));
+		if (new Set(configuredRankIds).size !== configuredRankIds.length) ctx.addIssue({ code: "custom", message: "Rangrollen müssen unterschiedliche IDs haben." });
+		if (configuredRankIds.some((id) => roles.includes(id))) ctx.addIssue({ code: "custom", message: "Rangrollen dürfen keine Registrierungsrollen wiederverwenden." });
 	});
 
 export type AppConfig = z.infer<typeof configSchema>;

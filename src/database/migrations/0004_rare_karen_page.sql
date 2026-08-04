@@ -1,0 +1,1 @@
+ALTER TABLE `league_profiles` ADD `puuid_snapshot` text NOT NULL;
