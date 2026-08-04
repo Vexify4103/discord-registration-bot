@@ -3,7 +3,7 @@ import { loadConfig } from "../config/load.js";
 import { assertDatabaseHealthy, createDatabase } from "./client.js";
 
 const config = loadConfig();
-const context = createDatabase(config.DATABASE_PATH);
+const context = createDatabase(config.SQLITE_IMPORT_PATH);
 try {
 	migrate(context.db, { migrationsFolder: "./src/database/migrations" });
 	assertDatabaseHealthy(context);

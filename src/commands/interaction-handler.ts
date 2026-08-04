@@ -13,8 +13,8 @@ import type { Logger } from "pino";
 import type { AppConfig } from "../config/schema.js";
 import { MemberReconciliationService } from "../integrations/discord/member-reconciliation-service.js";
 import { Localizer } from "../localization/formatter.js";
-import { MigrationRepository } from "../repositories/migration-repository.js";
-import { RegistrationRepository } from "../repositories/registration-repository.js";
+import { MigrationRepository } from "../repositories/mongo/migration-repository.js";
+import { RegistrationRepository } from "../repositories/mongo/registration-repository.js";
 import { MigrationService } from "../services/migration-service.js";
 import { PermissionService } from "../services/permission-service.js";
 import { RegistrationService, type RegistrationResult } from "../services/registration-service.js";
@@ -23,10 +23,10 @@ import { RiotSyncWorker } from "../jobs/riot-sync-worker.js";
 import { diagnoseGuild } from "../integrations/discord/diagnostics.js";
 import { safeErrorDetails } from "../logging/safe-error.js";
 import { handleLeagueCommand } from "./league-command-handler.js";
-import { LeagueRepository } from "../repositories/league-repository.js";
+import { LeagueRepository } from "../repositories/mongo/league-repository.js";
 import { LeagueStatsWorker } from "../jobs/league-stats-worker.js";
 import { ChampionCatalog } from "../integrations/riot/champion-catalog.js";
-import type { AuditRepository } from "../repositories/audit-repository.js";
+import type { AuditRepository } from "../repositories/mongo/audit-repository.js";
 
 export interface InteractionContext {
 	client: Client;
@@ -129,12 +129,12 @@ async function handleCommand(interaction: ChatInputCommandInteraction, ctx: Inte
 			break;
 		}
 		case "unregister":
-			ctx.registrations.unregister(interaction.guildId, member.id, actor.id);
+			await ctx.registrations.unregister(interaction.guildId, member.id, actor.id);
 			await ctx.reconciliation.reconcile(interaction.guildId, member.id);
 			await interaction.editReply(ctx.i18n.t("registration.unregistered"));
 			break;
 		case "registration-info": {
-			const row = ctx.registrations.get(interaction.guildId, member.id);
+			const row = await ctx.registrations.get(interaction.guildId, member.id);
 			if (!row) {
 				await interaction.editReply(ctx.i18n.t("registration.notInGuild"));
 				break;
@@ -210,7 +210,7 @@ async function handleSetup(interaction: ChatInputCommandInteraction, actor: Guil
 		return;
 	}
 	if (mode === "preview") {
-		if (ctx.migrations.active(interaction.guildId!)) {
+		if (await ctx.migrations.active(interaction.guildId!)) {
 			await interaction.editReply(ctx.i18n.t("migration.activeExists"));
 			return;
 		}
@@ -226,7 +226,7 @@ async function handleSetup(interaction: ChatInputCommandInteraction, actor: Guil
 		return;
 	}
 	if (mode === "resolve-review") {
-		if (ctx.migrations.active(interaction.guildId!)) {
+		if (await ctx.migrations.active(interaction.guildId!)) {
 			await interaction.editReply(ctx.i18n.t("migration.activeExists"));
 			return;
 		}
@@ -244,14 +244,14 @@ async function handleSetup(interaction: ChatInputCommandInteraction, actor: Guil
 		});
 		return;
 	}
-	const activeJob = ctx.migrations.active(interaction.guildId!);
+	const activeJob = await ctx.migrations.active(interaction.guildId!);
 	if (mode === "cancel") {
 		if (!activeJob) {
 			await interaction.editReply(ctx.i18n.t("migration.noActive"));
 			return;
 		}
-		ctx.migrations.cancel(activeJob.id);
-		ctx.audits?.create({ guildId: interaction.guildId!, actorUserId: actor.id, action: "MIGRATION_CANCELLED", result: "SUCCESS", metadata: { migrationJobId: activeJob.id } });
+		await ctx.migrations.cancel(activeJob.id);
+		await ctx.audits?.create({ guildId: interaction.guildId!, actorUserId: actor.id, action: "MIGRATION_CANCELLED", result: "SUCCESS", metadata: { migrationJobId: activeJob.id } });
 		await interaction.editReply(ctx.i18n.t("migration.activeCancelled"));
 		return;
 	}
@@ -259,17 +259,17 @@ async function handleSetup(interaction: ChatInputCommandInteraction, actor: Guil
 		await interaction.editReply(ctx.i18n.t("migration.activeExists"));
 		return;
 	}
-	const job = mode === "apply" ? ctx.migrations.latest(interaction.guildId!) : (activeJob ?? ctx.migrations.latest(interaction.guildId!));
+	const job = mode === "apply" ? await ctx.migrations.latest(interaction.guildId!) : (activeJob ?? (await ctx.migrations.latest(interaction.guildId!)));
 	if (!job) {
 		await interaction.editReply(ctx.i18n.t("migration.noPreview"));
 		return;
 	}
 	if (mode === "unknown") {
-		await interaction.editReply(unknownFormatPage(job.id, actor.id, 0, ctx));
+		await interaction.editReply(await unknownFormatPage(job.id, actor.id, 0, ctx));
 		return;
 	}
 	if (mode === "manual-review") {
-		await interaction.editReply(manualReviewPage(job.id, actor.id, 0, ctx));
+		await interaction.editReply(await manualReviewPage(job.id, actor.id, 0, ctx));
 		return;
 	}
 	if (mode === "apply") {
@@ -277,7 +277,7 @@ async function handleSetup(interaction: ChatInputCommandInteraction, actor: Guil
 			await interaction.editReply(ctx.i18n.t("migration.noPreview"));
 			return;
 		}
-		const token = ctx.migrationService.createConfirmation(job.id);
+		const token = await ctx.migrationService.createConfirmation(job.id);
 		await interaction.editReply({
 			content: ctx.i18n.t("migration.previewBody", { total: job.totalMembers }),
 			components: [migrationButtons(job.id, actor.id, token, ctx.i18n)],
@@ -289,8 +289,8 @@ async function handleSetup(interaction: ChatInputCommandInteraction, actor: Guil
 			await interaction.editReply(ctx.i18n.t("migration.notRunning"));
 			return;
 		}
-		ctx.migrations.pause(job.id, "MANUAL");
-		ctx.audits?.create({ guildId: interaction.guildId!, actorUserId: actor.id, action: "MIGRATION_PAUSED", result: "SUCCESS", metadata: { migrationJobId: job.id } });
+		await ctx.migrations.pause(job.id, "MANUAL");
+		await ctx.audits?.create({ guildId: interaction.guildId!, actorUserId: actor.id, action: "MIGRATION_PAUSED", result: "SUCCESS", metadata: { migrationJobId: job.id } });
 		await interaction.editReply(ctx.i18n.t("migration.paused"));
 		return;
 	}
@@ -299,13 +299,13 @@ async function handleSetup(interaction: ChatInputCommandInteraction, actor: Guil
 			await interaction.editReply(ctx.i18n.t("migration.notPaused"));
 			return;
 		}
-		ctx.migrations.resume(job.id);
-		ctx.audits?.create({ guildId: interaction.guildId!, actorUserId: actor.id, action: "MIGRATION_RESUMED", result: "SUCCESS", metadata: { migrationJobId: job.id } });
+		await ctx.migrations.resume(job.id);
+		await ctx.audits?.create({ guildId: interaction.guildId!, actorUserId: actor.id, action: "MIGRATION_RESUMED", result: "SUCCESS", metadata: { migrationJobId: job.id } });
 		await interaction.editReply(ctx.i18n.t("migration.confirmed"));
 		return;
 	}
-	await interaction.editReply(migrationStatusPage(job.id, actor.id, ctx));
-	startLiveMigrationStatus(interaction, job.id, actor.id, ctx);
+	await interaction.editReply(await migrationStatusPage(job.id, actor.id, ctx));
+	await startLiveMigrationStatus(interaction, job.id, actor.id, ctx);
 }
 
 async function handleButton(interaction: ButtonInteraction, ctx: InteractionContext): Promise<void> {
@@ -316,13 +316,13 @@ async function handleButton(interaction: ButtonInteraction, ctx: InteractionCont
 			await interaction.reply({ content: ctx.i18n.t("permissions.denied"), flags: MessageFlags.Ephemeral });
 			return;
 		}
-		const job = ctx.migrations.getJob(jobId!);
+		const job = await ctx.migrations.getJob(jobId!);
 		if (!job) {
 			await interaction.update({ content: ctx.i18n.t("migration.noPreview"), embeds: [], components: [] });
 			return;
 		}
-		await interaction.update(migrationStatusPage(job.id, actorId!, ctx));
-		startLiveMigrationStatus(interaction, job.id, actorId!, ctx);
+		await interaction.update(await migrationStatusPage(job.id, actorId!, ctx));
+		await startLiveMigrationStatus(interaction, job.id, actorId!, ctx);
 		return;
 	}
 	if (parts[0] === "migration-manual" && parts.length === 4) {
@@ -332,7 +332,7 @@ async function handleButton(interaction: ButtonInteraction, ctx: InteractionCont
 			return;
 		}
 		stopLiveMigrationStatus(jobId!, actorId!);
-		await interaction.update(manualReviewPage(jobId!, actorId!, Number(rawPage), ctx));
+		await interaction.update(await manualReviewPage(jobId!, actorId!, Number(rawPage), ctx));
 		return;
 	}
 	if (parts[0] === "migration-unknown" && parts.length === 4) {
@@ -344,7 +344,7 @@ async function handleButton(interaction: ButtonInteraction, ctx: InteractionCont
 			});
 			return;
 		}
-		await interaction.update(unknownFormatPage(jobId!, actorId!, Number(rawPage), ctx));
+		await interaction.update(await unknownFormatPage(jobId!, actorId!, Number(rawPage), ctx));
 		return;
 	}
 	if (parts[0] === "migration" && parts.length === 4) {
@@ -373,13 +373,13 @@ async function handleButton(interaction: ButtonInteraction, ctx: InteractionCont
 			});
 			return;
 		}
-		const ok = ctx.migrationService.confirm(jobId!, actorId!, token!);
+		const ok = await ctx.migrationService.confirm(jobId!, actorId!, token!);
 		if (!ok) {
 			await interaction.update({ content: ctx.i18n.t("migration.noPreview"), embeds: [], components: [] });
 			return;
 		}
-		await interaction.update(migrationStatusPage(jobId!, actorId!, ctx));
-		startLiveMigrationStatus(interaction, jobId!, actorId!, ctx);
+		await interaction.update(await migrationStatusPage(jobId!, actorId!, ctx));
+		await startLiveMigrationStatus(interaction, jobId!, actorId!, ctx);
 		return;
 	}
 	if (parts[0] === "cancel-migration" && parts.length === 3) {
@@ -391,8 +391,8 @@ async function handleButton(interaction: ButtonInteraction, ctx: InteractionCont
 			});
 			return;
 		}
-		ctx.migrations.cancel(jobId!);
-		ctx.audits?.create({ guildId: interaction.guildId!, actorUserId: actorId!, action: "MIGRATION_CANCELLED", result: "SUCCESS", metadata: { migrationJobId: jobId! } });
+		await ctx.migrations.cancel(jobId!);
+		await ctx.audits?.create({ guildId: interaction.guildId!, actorUserId: actorId!, action: "MIGRATION_CANCELLED", result: "SUCCESS", metadata: { migrationJobId: jobId! } });
 		await interaction.update({
 			content: ctx.i18n.t("migration.cancelled"),
 			components: [],
@@ -417,7 +417,7 @@ async function handleButton(interaction: ButtonInteraction, ctx: InteractionCont
 			});
 			return;
 		}
-		ctx.registrations.deletePersonalData(guildId!, userId!, actorId!);
+		await ctx.registrations.deletePersonalData(guildId!, userId!, actorId!);
 		await ctx.reconciliation.reconcile(guildId!, userId!);
 		await interaction.update({
 			content: ctx.i18n.t("registration.deleted"),
@@ -439,8 +439,8 @@ function migrationButtons(jobId: string, actorId: string, token: string, i18n: L
 	);
 }
 
-function unknownFormatPage(jobId: string, actorId: string, requestedPage: number, ctx: InteractionContext) {
-	const items = ctx.migrations.items(jobId).filter((item) => item.category === "UNKNOWN_FORMAT");
+async function unknownFormatPage(jobId: string, actorId: string, requestedPage: number, ctx: InteractionContext) {
+	const items = (await ctx.migrations.items(jobId)).filter((item) => item.category === "UNKNOWN_FORMAT");
 	if (!items.length)
 		return {
 			content: ctx.i18n.t("migration.unknownEmpty"),
@@ -483,27 +483,27 @@ function unknownFormatPage(jobId: string, actorId: string, requestedPage: number
 	};
 }
 
-function migrationStatusPage(jobId: string, actorId: string, ctx: InteractionContext) {
-	const job = ctx.migrations.getJob(jobId);
+async function migrationStatusPage(jobId: string, actorId: string, ctx: InteractionContext) {
+	const job = await ctx.migrations.getJob(jobId);
 	if (!job) return { content: ctx.i18n.t("migration.noPreview"), embeds: [], components: [] };
-	return migrationStatusMessage(job, ctx.migrations.manualReviewItems(jobId), actorId, ctx.i18n, ctx.migrations.pendingRetryCount(jobId));
+	return migrationStatusMessage(job, await ctx.migrations.manualReviewItems(jobId), actorId, ctx.i18n, await ctx.migrations.pendingRetryCount(jobId));
 }
 
-function manualReviewPage(jobId: string, actorId: string, requestedPage: number, ctx: InteractionContext) {
-	const job = ctx.migrations.getJob(jobId);
+async function manualReviewPage(jobId: string, actorId: string, requestedPage: number, ctx: InteractionContext) {
+	const job = await ctx.migrations.getJob(jobId);
 	if (!job) return { content: ctx.i18n.t("migration.noPreview"), embeds: [], components: [] };
-	const items = ctx.migrations.manualReviewItems(jobId);
+	const items = await ctx.migrations.manualReviewItems(jobId);
 	const conflicts = new Map<string, string>();
 	for (const item of items) {
 		try {
 			const metadata = JSON.parse(item.metadata) as { conflictingUserId?: unknown };
 			const fallback =
 				item.lastErrorCode === "DUPLICATE_PUUID_MANUAL_REVIEW" && item.parsedGameName && item.parsedTagLine
-					? ctx.registrations.findRegisteredByRiotId(job.guildId, `${item.parsedGameName}#${item.parsedTagLine}`, item.userId)
+					? await ctx.registrations.findRegisteredByRiotId(job.guildId, `${item.parsedGameName}#${item.parsedTagLine}`, item.userId)
 					: undefined;
 			const conflictingUserId = typeof metadata.conflictingUserId === "string" ? metadata.conflictingUserId : fallback?.userId;
 			if (!conflictingUserId) continue;
-			const row = fallback?.userId === conflictingUserId ? fallback : ctx.registrations.get(job.guildId, conflictingUserId);
+			const row = fallback?.userId === conflictingUserId ? fallback : await ctx.registrations.get(job.guildId, conflictingUserId);
 			conflicts.set(conflictingUserId, row?.discordUsernameSnapshot ? `${escapeDiscordMarkdown(row.discordUsernameSnapshot)} (${conflictingUserId})` : conflictingUserId);
 			if (typeof metadata.conflictingUserId !== "string") item.metadata = JSON.stringify({ conflictingUserId });
 		} catch {
@@ -516,22 +516,22 @@ function manualReviewPage(jobId: string, actorId: string, requestedPage: number,
 type StatusInteraction = ChatInputCommandInteraction | ButtonInteraction;
 const liveMigrationStatusTimers = new Map<string, NodeJS.Timeout>();
 
-function startLiveMigrationStatus(interaction: StatusInteraction, jobId: string, actorId: string, ctx: InteractionContext): void {
+async function startLiveMigrationStatus(interaction: StatusInteraction, jobId: string, actorId: string, ctx: InteractionContext): Promise<void> {
 	stopLiveMigrationStatus(jobId, actorId);
-	const initial = ctx.migrations.getJob(jobId);
+	const initial = await ctx.migrations.getJob(jobId);
 	if (initial?.status !== "RUNNING") return;
 	const key = `${jobId}:${actorId}`;
 	const expiresAt = Date.now() + 14 * 60_000;
 	const schedule = () => {
 		const timer = setTimeout(async () => {
 			if (liveMigrationStatusTimers.get(key) !== timer) return;
-			const job = ctx.migrations.getJob(jobId);
+			const job = await ctx.migrations.getJob(jobId);
 			if (!job) {
 				liveMigrationStatusTimers.delete(key);
 				return;
 			}
 			try {
-				await interaction.editReply(migrationStatusPage(jobId, actorId, ctx));
+				await interaction.editReply(await migrationStatusPage(jobId, actorId, ctx));
 			} catch {
 				liveMigrationStatusTimers.delete(key);
 				return;

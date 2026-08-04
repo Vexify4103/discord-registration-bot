@@ -13,7 +13,7 @@ function registration(userId: string, status: Registration["status"], puuid: str
 }
 
 describe("RankRoleStartupSweep", () => {
-	it("queues registered and cleanup states while preserving pending members and bots", () => {
+	it("queues registered and cleanup states while preserving pending members and bots", async () => {
 		const rows = new Map<string, Registration>([
 			["registered", registration("registered", "REGISTERED", "puuid")],
 			["no-riot", registration("no-riot", "VERIFIED_NO_RIOT")],
@@ -34,7 +34,7 @@ describe("RankRoleStartupSweep", () => {
 			["missing", member("missing")],
 			["bot", member("bot", true)],
 		]);
-		const summary = new RankRoleStartupSweep(repository, pino({ level: "silent" })).run("guild", members);
+		const summary = await new RankRoleStartupSweep(repository, pino({ level: "silent" })).run("guild", members);
 		expect(summary).toEqual({ totalMembers: 6, botsIgnored: 1, registeredQueued: 1, cleanupQueued: 3, pendingPreserved: 1 });
 		expect(requestReconciliation.mock.calls.map((call) => call[1])).toEqual(["registered", "no-riot", "unregistered", "missing"]);
 	});

@@ -1,12 +1,12 @@
 import { DiscordAPIError, type Client, type GuildMember } from "discord.js";
 import type { Logger } from "pino";
 import type { AppConfig } from "../../config/schema.js";
-import type { RegistrationRepository } from "../../repositories/registration-repository.js";
+import type { RegistrationRepository } from "../../repositories/mongo/registration-repository.js";
 import type { PlannedDiscordOperation } from "../../services/member-state-reconciler.js";
 import { MemberStateReconciler } from "../../services/member-state-reconciler.js";
-import { AuditRepository } from "../../repositories/audit-repository.js";
+import { AuditRepository } from "../../repositories/mongo/audit-repository.js";
 import { Localizer } from "../../localization/formatter.js";
-import { LeagueRepository } from "../../repositories/league-repository.js";
+import { LeagueRepository } from "../../repositories/mongo/league-repository.js";
 
 export type DiscordMutationResult = { kind: "success" | "no-op" } | { kind: "retryable" | "permanent"; code: string };
 
@@ -23,12 +23,12 @@ export class MemberReconciliationService {
 	) {}
 
 	async reconcile(guildId: string, userId: string): Promise<DiscordMutationResult> {
-		const registration = this.registrations.get(guildId, userId);
+		const registration = await this.registrations.get(guildId, userId);
 		if (!registration || !registration.isPresent) return { kind: "permanent", code: "REGISTRATION_OR_MEMBER_ABSENT" };
 		try {
 			const guild = await this.client.guilds.fetch(guildId);
 			const member = await guild.members.fetch(userId);
-			const leagueProfile = this.league.profile(guildId, userId);
+			const leagueProfile = await this.league.profile(guildId, userId);
 			const plan = this.reconciler.plan(
 				registration,
 				{
@@ -46,7 +46,7 @@ export class MemberReconciliationService {
 			let nicknameChanged = false;
 			for (const operation of plan.operations) {
 				const result = await this.execute(member, operation);
-				this.audits.create({
+				await this.audits.create({
 					guildId,
 					targetUserId: userId,
 					action: operation.type,
@@ -61,7 +61,7 @@ export class MemberReconciliationService {
 				nicknameChanged ||= operation.type === "SET_NICKNAME";
 			}
 			const now = Date.now();
-			this.registrations.updateSync(guildId, userId, {
+			await this.registrations.updateSync(guildId, userId, {
 				...(rolesChanged ? { roleSyncStatus: "SUCCEEDED" as const, lastRoleSyncAt: now } : {}),
 				...(nicknameChanged
 					? {

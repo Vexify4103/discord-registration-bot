@@ -16,6 +16,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file-if-exists=.env --import tsx src/database/migrate.ts",
     "db:migrate:prod": "node dist/database/migrate.js",
+    "db:import:mongodb": "node --env-file-if-exists=.env --import tsx src/database/import-sqlite-to-mongo.ts",
+    "db:import:mongodb:prod": "node --env-file-if-exists=.env dist/database/import-sqlite-to-mongo.js",
     "commands:deploy": "node --env-file-if-exists=.env --import tsx src/integrations/discord/deploy-commands.ts",
     "backup": "node --env-file-if-exists=.env --import tsx scripts/backup.ts",
     "backup:prod": "node dist/operations/backup.js",
@@ -26,6 +28,7 @@
     "better-sqlite3": "^13.0.2",
     "discord.js": "^14.27.0",
     "drizzle-orm": "^0.45.2",
+    "mongodb": "^7.5.0",
     "pino": "^10.1.0",
     "prettier": "^3.9.6",
     "zod": "^4.3.6"

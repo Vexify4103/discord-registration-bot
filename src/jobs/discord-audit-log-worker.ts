@@ -2,8 +2,8 @@ import { DiscordAPIError, WebhookClient } from "discord.js";
 import type { Logger } from "pino";
 import type { AppConfig } from "../config/schema.js";
 import { safeErrorDetails } from "../logging/safe-error.js";
-import type { DiscordAuditOutboxRepository } from "../repositories/discord-audit-outbox-repository.js";
-import type { WorkerLeaseRepository } from "../repositories/worker-lease-repository.js";
+import type { DiscordAuditOutboxRepository } from "../repositories/mongo/discord-audit-outbox-repository.js";
+import type { WorkerLeaseRepository } from "../repositories/mongo/worker-lease-repository.js";
 import type { DiscordAuditPresenter } from "../services/discord-audit-presenter.js";
 
 export class DiscordAuditLogWorker {
@@ -37,20 +37,20 @@ export class DiscordAuditLogWorker {
 	}
 
 	async tick(): Promise<void> {
-		if (!this.webhook || this.running || !this.leases.acquire("discord-audit-log", 60_000)) return;
+		if (!this.webhook || this.running || !(await this.leases.acquire("discord-audit-log", 60_000))) return;
 		this.running = true;
 		try {
-			const item = this.outbox.due(Date.now(), 1)[0];
+			const item = (await this.outbox.due(Date.now(), 1))[0];
 			if (!item) return;
 			try {
 				await this.webhook.send({
 					embeds: [this.presenter.embed(item.event)],
 					allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
 				});
-				this.outbox.complete(item.event.id);
+				await this.outbox.complete(item.event.id);
 			} catch (error) {
 				const failure = classifyWebhookError(error);
-				this.outbox.fail(item.event.id, failure.code, failure.retryable);
+				await this.outbox.fail(item.event.id, failure.code, failure.retryable);
 				this.logger.warn(
 					{ error: safeErrorDetails(error), eventId: item.event.id, action: item.event.action, errorCode: failure.code },
 					"Discord audit webhook delivery failed"
@@ -60,7 +60,7 @@ export class DiscordAuditLogWorker {
 			this.logger.error({ error: safeErrorDetails(error) }, "Discord audit log worker failed");
 		} finally {
 			this.running = false;
-			this.leases.release("discord-audit-log");
+			await this.leases.release("discord-audit-log");
 		}
 	}
 }

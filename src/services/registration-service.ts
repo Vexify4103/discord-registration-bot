@@ -1,6 +1,6 @@
 import type { Logger } from "pino";
 import type { NameVisibility } from "../types/domain.js";
-import { DuplicatePuuidError, RegistrationRepository } from "../repositories/registration-repository.js";
+import { DuplicatePuuidError, RegistrationRepository } from "../repositories/mongo/registration-repository.js";
 import { buildOpggUrl, OpggParser } from "../parsers/opgg-parser.js";
 import { RiotAccountService } from "../integrations/riot/riot-account-service.js";
 
@@ -37,7 +37,7 @@ export class RegistrationService {
 		if (visibility === "HIDDEN" && name) return { kind: "name-not-allowed" };
 		const parsed = this.opgg.parse(input.opgg);
 		if (!parsed) return { kind: "invalid-opgg" };
-		const attemptId = this.registrations.createAttempt(input.guildId, input.userId, input.actorUserId);
+		const attemptId = await this.registrations.createAttempt(input.guildId, input.userId, input.actorUserId);
 		try {
 			const result = await this.riot.byRiotId(parsed.accountRoutingGroup, parsed.gameName, parsed.tagLine);
 			if (result.kind === "not-found" || result.kind === "invalid-request") return { kind: "riot-not-found" };
@@ -50,7 +50,7 @@ export class RegistrationService {
 				opggUrl: buildOpggUrl(parsed.platformRegion, result.account.gameName, result.account.tagLine),
 			};
 			try {
-				this.registrations.saveRegistered({
+				await this.registrations.saveRegistered({
 					...input,
 					displayName: visibility === "VISIBLE" ? name : null,
 					nameVisibility: visibility,
@@ -65,7 +65,7 @@ export class RegistrationService {
 			this.logger.error({ err: error, guildId: input.guildId, userId: input.userId }, "Registration failed");
 			return { kind: "riot-unavailable" };
 		} finally {
-			this.registrations.removeAttempt(attemptId);
+			await this.registrations.removeAttempt(attemptId);
 		}
 	}
 }

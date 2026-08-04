@@ -2,11 +2,11 @@ import type { Client } from "discord.js";
 import type { Logger } from "pino";
 import type { AppConfig } from "../config/schema.js";
 import { DiscordMemberMutationQueue } from "../queues/discord-member-mutation-queue.js";
-import { RegistrationRepository } from "../repositories/registration-repository.js";
+import { RegistrationRepository } from "../repositories/mongo/registration-repository.js";
 import { PermissionService } from "../services/permission-service.js";
 import { Localizer } from "../localization/formatter.js";
-import { WorkerLeaseRepository } from "../repositories/worker-lease-repository.js";
-import { AuditRepository } from "../repositories/audit-repository.js";
+import { WorkerLeaseRepository } from "../repositories/mongo/worker-lease-repository.js";
+import { AuditRepository } from "../repositories/mongo/audit-repository.js";
 
 export class CleanupWorker {
 	private timer?: NodeJS.Timeout;
@@ -34,14 +34,14 @@ export class CleanupWorker {
 		if (this.timer) clearInterval(this.timer);
 	}
 	async tick(): Promise<void> {
-		if (!this.config.CLEANUP_ENABLED || this.running || !this.leases.acquire("cleanup", 10 * 60_000)) return;
+		if (!this.config.CLEANUP_ENABLED || this.running || !(await this.leases.acquire("cleanup", 10 * 60_000))) return;
 		this.running = true;
 		try {
 			const cutoff = Date.now() - this.config.REGISTRATION_EXPIRY_DAYS * 86_400_000;
-			for (const row of this.registrations.dueCleanup(cutoff))
+			for (const row of await this.registrations.dueCleanup(cutoff))
 				await this.queue.run(`${row.guildId}:${row.userId}`, 70, async () => {
-					const current = this.registrations.get(row.guildId, row.userId);
-					if (!current || current.status !== "UNREGISTERED" || current.stateVersion !== row.stateVersion || this.registrations.hasActiveAttempt(row.guildId, row.userId))
+					const current = await this.registrations.get(row.guildId, row.userId);
+					if (!current || current.status !== "UNREGISTERED" || current.stateVersion !== row.stateVersion || (await this.registrations.hasActiveAttempt(row.guildId, row.userId)))
 						return;
 					const guild = await this.client.guilds.fetch(row.guildId);
 					let member;
@@ -51,10 +51,10 @@ export class CleanupWorker {
 						return;
 					}
 					if (member.user.bot || member.id === guild.ownerId || this.permissions.isExempt(member) || !member.manageable) return;
-					const final = this.registrations.get(row.guildId, row.userId);
-					if (!final || final.status !== "UNREGISTERED" || final.stateVersion !== row.stateVersion || this.registrations.hasActiveAttempt(row.guildId, row.userId))
+					const final = await this.registrations.get(row.guildId, row.userId);
+					if (!final || final.status !== "UNREGISTERED" || final.stateVersion !== row.stateVersion || (await this.registrations.hasActiveAttempt(row.guildId, row.userId)))
 						return;
-					this.audits.create({
+					await this.audits.create({
 						guildId: row.guildId,
 						targetUserId: row.userId,
 						action: "CLEANUP_KICK_ATTEMPTED",
@@ -66,20 +66,20 @@ export class CleanupWorker {
 						} catch (error) {
 							this.logger.info({ err: error, userId: row.userId }, "Cleanup DM failed");
 						}
-					const afterDm = this.registrations.get(row.guildId, row.userId);
-					if (!afterDm || afterDm.status !== "UNREGISTERED" || afterDm.stateVersion !== row.stateVersion || this.registrations.hasActiveAttempt(row.guildId, row.userId))
+					const afterDm = await this.registrations.get(row.guildId, row.userId);
+					if (!afterDm || afterDm.status !== "UNREGISTERED" || afterDm.stateVersion !== row.stateVersion || (await this.registrations.hasActiveAttempt(row.guildId, row.userId)))
 						return;
 					try {
 						await member.kick(this.i18n.t("cleanup.removalReason"));
-						this.registrations.markLeft(row.guildId, row.userId);
-						this.audits.create({
+						await this.registrations.markLeft(row.guildId, row.userId);
+						await this.audits.create({
 							guildId: row.guildId,
 							targetUserId: row.userId,
 							action: "CLEANUP_KICK_SUCCEEDED",
 							result: "SUCCESS",
 						});
 					} catch (error) {
-						this.audits.create({
+						await this.audits.create({
 							guildId: row.guildId,
 							targetUserId: row.userId,
 							action: "CLEANUP_KICK_FAILED",
@@ -93,7 +93,7 @@ export class CleanupWorker {
 			this.logger.error({ err: error }, "Cleanup worker failed");
 		} finally {
 			this.running = false;
-			this.leases.release("cleanup");
+			await this.leases.release("cleanup");
 		}
 	}
 }

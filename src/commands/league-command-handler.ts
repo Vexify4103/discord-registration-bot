@@ -46,10 +46,10 @@ export async function executeLeagueCommand(request: LeagueCommandRequest, ctx: I
 					.setDescription(ctx.i18n.t(request.subcommand === "help" ? "league.helpBody" : "league.aboutBody")),
 			],
 		};
-	const registration = ctx.registrations.get(request.guildId, request.userId);
+	const registration = await ctx.registrations.get(request.guildId, request.userId);
 	if (!registration?.puuid || registration.status !== "REGISTERED") return ctx.i18n.t("league.notRegistered");
 	if (request.subcommand === "refresh") {
-		const recent = ctx.league.profile(request.guildId, request.userId);
+		const recent = await ctx.league.profile(request.guildId, request.userId);
 		if (recent?.lastStatsSyncAt && recent.lastStatsSyncAt > Date.now() - 5 * 60_000) {
 			await ctx.reconciliation.reconcile(request.guildId, request.userId);
 			return ctx.i18n.t("league.refreshSuccess");
@@ -58,7 +58,7 @@ export async function executeLeagueCommand(request: LeagueCommandRequest, ctx: I
 		if (ok) await ctx.reconciliation.reconcile(request.guildId, request.userId);
 		return ctx.i18n.t(ok ? "league.refreshSuccess" : "league.refreshFailed");
 	}
-	const profile = ctx.league.profile(request.guildId, request.userId);
+	const profile = await ctx.league.profile(request.guildId, request.userId);
 	if (!profile?.lastStatsSyncAt) return ctx.i18n.t("league.noData");
 	if (request.subcommand === "profile")
 		return {
@@ -79,7 +79,7 @@ export async function executeLeagueCommand(request: LeagueCommandRequest, ctx: I
 			],
 		};
 	if (request.subcommand === "mastery") {
-		const masteries = ctx.league.masteries(request.guildId, request.userId, 10);
+		const masteries = await ctx.league.masteries(request.guildId, request.userId, 10);
 		if (!masteries.length) return ctx.i18n.t("league.noData");
 		const names = await Promise.all(masteries.map((row) => ctx.champions.name(row.championId)));
 		return {
@@ -106,7 +106,7 @@ export async function executeLeagueCommand(request: LeagueCommandRequest, ctx: I
 		if (!request.champion) return ctx.i18n.t("league.championNotFound");
 		const championId = await ctx.champions.resolve(request.champion);
 		if (!championId) return ctx.i18n.t("league.championNotFound");
-		const history = ctx.league.history(request.guildId, request.userId, championId);
+		const history = await ctx.league.history(request.guildId, request.userId, championId);
 		if (history.length < 2) return ctx.i18n.t("league.historyInsufficient");
 		const champion = await ctx.champions.name(championId);
 		const png = renderMasteryChart(history.map((point) => ({ time: point.capturedAt, points: point.championPoints })));
@@ -132,9 +132,9 @@ export async function executeLeagueCommand(request: LeagueCommandRequest, ctx: I
 			if (!request.champion) return ctx.i18n.t("league.championNotFound");
 			const championId = await ctx.champions.resolve(request.champion);
 			if (!championId) return ctx.i18n.t("league.championNotFound");
-			rows = ctx.league.championLeaderboard(request.guildId, championId);
+			rows = await ctx.league.championLeaderboard(request.guildId, championId);
 			category = await ctx.champions.name(championId);
-		} else rows = ctx.league.totalLeaderboard(request.guildId);
+		} else rows = await ctx.league.totalLeaderboard(request.guildId);
 		if (!rows.length) return ctx.i18n.t("league.noData");
 		return {
 			embeds: [

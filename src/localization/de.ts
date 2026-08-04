@@ -54,7 +54,10 @@ export const de: Record<MessageKey, string> = {
 	"league.rolesBody": "Berücksichtigter Rang: **{rank}**\nErwartete Rolle: **{role}**\nTFT wird bei Rangrollen nicht berücksichtigt.",
 	"league.helpTitle": "League-Befehle",
 	"league.helpBody":
-		"`/league profile` – Profil und Ränge\n`/league mastery` – beste Champions\n`/league chart` – Mastery-Verlauf\n`/league top` – Server-Bestenlisten\n`/league refresh` – Daten und Rangrolle aktualisieren\n`/league roles` – Rangrollenstatus\n\nWenn Mention-Befehle aktiviert sind, funktionieren auch `@Bot profil`, `@Bot mastery`, `@Bot stats Ahri`, `@Bot top Ahri`, `@Bot refresh` und `@Bot rollen`. Ein erwähntes Mitglied wird als Ziel verwendet.",
+		"`/league profile` – Profil und Ränge\n`/league mastery` – beste Champions\n`/league chart` – Mastery-Verlauf\n`/league top` – Server-Bestenlisten\n`/league refresh` – Daten und Rangrolle aktualisieren\n`/league roles` – Rangrollenstatus",
+	"league.mentionHelpTitle": "League-Hilfe",
+	"league.mentionHelpBody":
+		"Was möchtest du ansehen?\n\n`@Bot profil` – dein League-Profil und deine Ränge\n`@Bot mastery` – deine stärksten Champions\n`@Bot top Ahri` – die Server-Bestenliste für einen Champion\n\nAlle Funktionen und weitere Optionen findest du unter `/league help`.",
 	"league.aboutTitle": "League-Funktionen",
 	"league.aboutBody":
 		"Der Bot verwendet dein über `/register` verknüpftes Riot-Konto. Rangrollen basieren ausschließlich auf dem höheren Rang aus Solo/Duo und Flex; TFT ist ausgeschlossen. Mastery-Verläufe beginnen mit dem ersten gespeicherten Snapshot.",

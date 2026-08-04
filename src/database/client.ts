@@ -22,6 +22,14 @@ export function createDatabase(databasePath: string) {
 	return { sqlite, db: drizzle(sqlite, { schema }), path: resolved };
 }
 
+export function openReadOnlyDatabase(databasePath: string) {
+	const resolved = resolve(databasePath);
+	const sqlite = new Database(resolved, { readonly: true, fileMustExist: true });
+	sqlite.pragma("foreign_keys = ON");
+	sqlite.pragma("busy_timeout = 5000");
+	return { sqlite, db: drizzle(sqlite, { schema }), path: resolved };
+}
+
 export function assertDatabaseHealthy(context: DatabaseContext): void {
 	const result = context.sqlite.pragma("quick_check", { simple: true });
 	if (result !== "ok") throw new Error(`SQLite quick_check failed: ${String(result)}`);

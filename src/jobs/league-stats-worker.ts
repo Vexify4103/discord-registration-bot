@@ -1,9 +1,9 @@
 import type { Logger } from "pino";
 import type { AppConfig } from "../config/schema.js";
 import { RiotLeagueService } from "../integrations/riot/riot-league-service.js";
-import { LeagueRepository } from "../repositories/league-repository.js";
-import { RegistrationRepository } from "../repositories/registration-repository.js";
-import { WorkerLeaseRepository } from "../repositories/worker-lease-repository.js";
+import { LeagueRepository } from "../repositories/mongo/league-repository.js";
+import { RegistrationRepository } from "../repositories/mongo/registration-repository.js";
+import { WorkerLeaseRepository } from "../repositories/mongo/worker-lease-repository.js";
 import { operationPriorities } from "../types/domain.js";
 
 export class LeagueStatsWorker {
@@ -29,10 +29,10 @@ export class LeagueStatsWorker {
 	}
 
 	async tick(): Promise<void> {
-		if (this.running || this.authenticationPaused || !this.leases.acquire("league-stats", 15 * 60_000)) return;
+		if (this.running || this.authenticationPaused || !(await this.leases.acquire("league-stats", 15 * 60_000))) return;
 		this.running = true;
 		try {
-			const due = this.league.due(Date.now(), this.config.LEAGUE_STATS_BATCH_SIZE);
+			const due = await this.league.due(Date.now(), this.config.LEAGUE_STATS_BATCH_SIZE);
 			if (!due.length) return;
 			let succeeded = 0;
 			let failed = 0;
@@ -60,7 +60,7 @@ export class LeagueStatsWorker {
 			this.logger.error({ err: error }, "League stats worker failed");
 		} finally {
 			this.running = false;
-			this.leases.release("league-stats");
+			await this.leases.release("league-stats");
 		}
 	}
 
@@ -69,17 +69,17 @@ export class LeagueStatsWorker {
 	}
 
 	private async syncRegistration(guildId: string, userId: string, priority: number): Promise<{ kind: "success" } | { kind: "failure" | "authentication-failure"; code: string }> {
-		const registration = this.registrations.get(guildId, userId);
+		const registration = await this.registrations.get(guildId, userId);
 		if (!registration?.puuid || !registration.platformRegion || registration.status !== "REGISTERED") return { kind: "failure", code: "REGISTRATION_NOT_ELIGIBLE" };
 		const result = await this.riot.stats(registration.platformRegion, registration.puuid, priority);
 		const now = Date.now();
 		if (result.kind !== "success") {
-			this.league.fail(guildId, userId, result.code, now + 60 * 60_000, now);
+			await this.league.fail(guildId, userId, result.code, now + 60 * 60_000, now);
 			return { kind: result.kind === "authentication-failure" ? "authentication-failure" : "failure", code: result.code };
 		}
 		const next = now + this.config.LEAGUE_STATS_SYNC_INTERVAL_HOURS * 60 * 60_000 + deterministicJitter(userId);
-		this.league.save(guildId, userId, { ...result, puuid: registration.puuid }, next, now);
-		if (this.config.RANK_ROLE_SYNC_ENABLED) this.registrations.requestReconciliation(guildId, userId, operationPriorities.RIOT_SYNC, now);
+		await this.league.save(guildId, userId, { ...result, puuid: registration.puuid }, next, now);
+		if (this.config.RANK_ROLE_SYNC_ENABLED) await this.registrations.requestReconciliation(guildId, userId, operationPriorities.RIOT_SYNC, now);
 		return { kind: "success" };
 	}
 }

@@ -1,7 +1,15 @@
 import type { Collection, GuildMember, Snowflake } from "discord.js";
 import type { Logger } from "pino";
-import type { RegistrationRepository } from "../repositories/registration-repository.js";
+import type { Registration } from "../database/schema/index.js";
 import { operationPriorities } from "../types/domain.js";
+
+type MaybePromise<T> = T | Promise<T>;
+
+interface RankRoleRegistrationStore {
+	get(guildId: string, userId: string): MaybePromise<Registration | undefined>;
+	upsertJoined(guildId: string, userId: string, username: string, joinedAt: number): MaybePromise<Registration>;
+	requestReconciliation(guildId: string, userId: string, priority: number): MaybePromise<boolean>;
+}
 
 export interface RankRoleSweepSummary {
 	totalMembers: number;
@@ -13,11 +21,11 @@ export interface RankRoleSweepSummary {
 
 export class RankRoleStartupSweep {
 	constructor(
-		private readonly registrations: RegistrationRepository,
+		private readonly registrations: RankRoleRegistrationStore,
 		private readonly logger: Logger
 	) {}
 
-	run(guildId: string, members: Collection<Snowflake, GuildMember>): RankRoleSweepSummary {
+	async run(guildId: string, members: Collection<Snowflake, GuildMember>): Promise<RankRoleSweepSummary> {
 		const summary: RankRoleSweepSummary = {
 			totalMembers: members.size,
 			botsIgnored: 0,
@@ -32,14 +40,14 @@ export class RankRoleStartupSweep {
 				continue;
 			}
 			examinedHumans++;
-			let registration = this.registrations.get(guildId, member.id);
+			let registration = await this.registrations.get(guildId, member.id);
 			if (!registration || !registration.isPresent)
-				registration = this.registrations.upsertJoined(guildId, member.id, member.user.username, member.joinedTimestamp ?? Date.now());
+				registration = await this.registrations.upsertJoined(guildId, member.id, member.user.username, member.joinedTimestamp ?? Date.now());
 			if (registration.status === "PENDING_VERIFICATION") {
 				summary.pendingPreserved++;
 				continue;
 			}
-			this.registrations.requestReconciliation(guildId, member.id, operationPriorities.REPAIR);
+			await this.registrations.requestReconciliation(guildId, member.id, operationPriorities.REPAIR);
 			if (registration.status === "REGISTERED" && registration.puuid) summary.registeredQueued++;
 			else summary.cleanupQueued++;
 			if (examinedHumans % 100 === 0)

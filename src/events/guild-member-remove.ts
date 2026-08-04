@@ -1,14 +1,14 @@
 import type { GuildMember, PartialGuildMember } from "discord.js";
 import type { Logger } from "pino";
-import type { RegistrationRepository } from "../repositories/registration-repository.js";
-import type { AuditRepository } from "../repositories/audit-repository.js";
+import type { RegistrationRepository } from "../repositories/mongo/registration-repository.js";
+import type { AuditRepository } from "../repositories/mongo/audit-repository.js";
 
 export function createGuildMemberRemoveHandler(registrations: RegistrationRepository, audits: AuditRepository, logger: Logger) {
-	return (member: GuildMember | PartialGuildMember): void => {
+	return async (member: GuildMember | PartialGuildMember): Promise<void> => {
 		if (member.user.bot) return;
 		try {
-			registrations.markLeft(member.guild.id, member.id);
-			audits.create({
+			await registrations.markLeft(member.guild.id, member.id);
+			await audits.create({
 				guildId: member.guild.id,
 				targetUserId: member.id,
 				action: "MEMBER_LEFT",

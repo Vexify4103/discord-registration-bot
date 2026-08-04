@@ -2,7 +2,7 @@ import Database from "better-sqlite3";
 import { chmodSync, mkdirSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 
-const source = resolve(process.env.DATABASE_PATH ?? "./data/bot.sqlite");
+const source = resolve(process.env.SQLITE_IMPORT_PATH ?? "./data/bot.sqlite");
 const destinationDirectory = resolve(process.env.BACKUP_PATH ?? "./backups");
 mkdirSync(destinationDirectory, { recursive: true, mode: 0o700 });
 const stamp = new Date().toISOString().replace(/[:.]/g, "-");

@@ -2,9 +2,9 @@ import { createHash, randomBytes } from "node:crypto";
 import type { Guild, GuildMember } from "discord.js";
 import type { AppConfig } from "../config/schema.js";
 import { LegacyNicknameParser, type LegacyParseResult } from "../parsers/legacy-nickname-parser.js";
-import { MigrationRepository } from "../repositories/migration-repository.js";
+import { MigrationRepository } from "../repositories/mongo/migration-repository.js";
 import { PermissionService } from "./permission-service.js";
-import { AuditRepository } from "../repositories/audit-repository.js";
+import { AuditRepository } from "../repositories/mongo/audit-repository.js";
 
 export interface MigrationPreviewSummary {
 	jobId: string;
@@ -34,9 +34,9 @@ export class MigrationService {
 			unknownPolicy: this.config.UNKNOWN_MEMBER_MIGRATION_POLICY,
 			routes: this.config.LEGACY_RIOT_ACCOUNT_ROUTES,
 		});
-		const job = this.migrations.createPreview(guild.id, actorId, snapshot, fingerprint, items);
+		const job = await this.migrations.createPreview(guild.id, actorId, snapshot, fingerprint, items);
 		for (const item of items)
-			this.audits.create({
+			await this.audits.create({
 				guildId: guild.id,
 				targetUserId: item.userId,
 				actorUserId: actorId,
@@ -44,7 +44,7 @@ export class MigrationService {
 				result: item.parsed.category,
 				metadata: { migrationJobId: job.id },
 			});
-		const token = this.createConfirmation(job.id);
+		const token = await this.createConfirmation(job.id);
 		const counts: Record<string, number> = {};
 		const examples: Record<string, string[]> = {};
 		for (const item of items) {
@@ -52,7 +52,7 @@ export class MigrationService {
 			examples[item.parsed.category] ??= [];
 			if (examples[item.parsed.category]!.length < 3) examples[item.parsed.category]!.push(maskExample(item.nickname, item.userId));
 		}
-		this.audits.create({
+		await this.audits.create({
 			guildId: guild.id,
 			actorUserId: actorId,
 			action: "MIGRATION_PREVIEW_CREATED",
@@ -63,9 +63,9 @@ export class MigrationService {
 	}
 
 	async previewManualResolution(guild: Guild, actorId: string): Promise<MigrationPreviewSummary | null> {
-		const sourceJob = this.migrations.latestReviewable(guild.id);
+		const sourceJob = await this.migrations.latestReviewable(guild.id);
 		if (!sourceJob) return null;
-		const candidates = this.migrations.reviewCandidates(sourceJob.id);
+		const candidates = await this.migrations.reviewCandidates(sourceJob.id);
 		const members = await guild.members.fetch();
 		const items = candidates
 			.map((candidate) => members.get(candidate.userId))
@@ -81,9 +81,9 @@ export class MigrationService {
 			routes: this.config.LEGACY_RIOT_ACCOUNT_ROUTES,
 			reviewSourceJobId: sourceJob.id,
 		});
-		const job = this.migrations.createPreview(guild.id, actorId, snapshot, fingerprint, items);
+		const job = await this.migrations.createPreview(guild.id, actorId, snapshot, fingerprint, items);
 		for (const item of items)
-			this.audits.create({
+			await this.audits.create({
 				guildId: guild.id,
 				targetUserId: item.userId,
 				actorUserId: actorId,
@@ -91,7 +91,7 @@ export class MigrationService {
 				result: item.parsed.category,
 				metadata: { migrationJobId: job.id, sourceJobId: sourceJob.id },
 			});
-		const token = this.createConfirmation(job.id);
+		const token = await this.createConfirmation(job.id);
 		const counts: Record<string, number> = {};
 		const examples: Record<string, string[]> = {};
 		for (const item of items) {
@@ -99,7 +99,7 @@ export class MigrationService {
 			examples[item.parsed.category] ??= [];
 			if (examples[item.parsed.category]!.length < 3) examples[item.parsed.category]!.push(maskExample(item.nickname, item.userId));
 		}
-		this.audits.create({
+		await this.audits.create({
 			guildId: guild.id,
 			actorUserId: actorId,
 			action: "MIGRATION_REVIEW_PREVIEW_CREATED",
@@ -109,17 +109,17 @@ export class MigrationService {
 		return { jobId: job.id, token, total: items.length, counts, examples };
 	}
 
-	createConfirmation(jobId: string): string {
+	async createConfirmation(jobId: string): Promise<string> {
 		const token = randomBytes(8).toString("hex");
-		this.migrations.setConfirmation(jobId, digest(token), Date.now() + 10 * 60_000);
+		await this.migrations.setConfirmation(jobId, digest(token), Date.now() + 10 * 60_000);
 		return token;
 	}
 
-	confirm(jobId: string, actorId: string, token: string): boolean {
-		const job = this.migrations.getJob(jobId);
+	async confirm(jobId: string, actorId: string, token: string): Promise<boolean> {
+		const job = await this.migrations.getJob(jobId);
 		if (!job || job.status !== "PREVIEWED" || job.startedBy !== actorId || !job.confirmationHash || !job.confirmationExpiresAt || job.confirmationExpiresAt < Date.now())
 			return false;
-		const active = this.migrations.active(job.guildId);
+		const active = await this.migrations.active(job.guildId);
 		if (active && active.id !== job.id) return false;
 		if (digest(token) !== job.confirmationHash) return false;
 		let reviewSourceJobId: string | undefined;
@@ -130,13 +130,13 @@ export class MigrationService {
 			// Older migration snapshots do not contain review metadata.
 		}
 		if (reviewSourceJobId)
-			this.migrations.startReview(
+			await this.migrations.startReview(
 				jobId,
 				reviewSourceJobId,
-				this.migrations.items(jobId).map((item) => item.userId)
+				(await this.migrations.items(jobId)).map((item) => item.userId)
 			);
-		else this.migrations.start(jobId);
-		this.audits.create({
+		else await this.migrations.start(jobId);
+		await this.audits.create({
 			guildId: job.guildId,
 			actorUserId: actorId,
 			action: "MIGRATION_STARTED",

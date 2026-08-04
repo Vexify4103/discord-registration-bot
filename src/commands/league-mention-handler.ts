@@ -1,4 +1,4 @@
-import type { Message } from "discord.js";
+import { EmbedBuilder, type Message } from "discord.js";
 import type { Logger } from "pino";
 import type { InteractionContext } from "./interaction-handler.js";
 import { executeLeagueCommand, type LeagueCommandRequest, type LeagueSubcommand } from "./league-command-handler.js";
@@ -56,6 +56,12 @@ export function createLeagueMentionHandler(ctx: InteractionContext, logger: Logg
 		try {
 			const target = message.mentions.users.find((user) => user.id !== ctx.client.user!.id && !user.bot) ?? message.author;
 			await message.channel.sendTyping();
+			if (parsed.subcommand === "help") {
+				await message.reply({
+					embeds: [new EmbedBuilder().setColor(0x5865f2).setTitle(ctx.i18n.t("league.mentionHelpTitle")).setDescription(ctx.i18n.t("league.mentionHelpBody"))],
+				});
+				return;
+			}
 			const request: LeagueCommandRequest = { guildId: message.guildId, userId: target.id, ...parsed };
 			await message.reply(await executeLeagueCommand(request, ctx));
 		} catch (error) {

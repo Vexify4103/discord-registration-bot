@@ -1,10 +1,9 @@
 import { ActivityType, Client, Events, GatewayIntentBits } from "discord.js";
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import type { Logger } from "pino";
 import { commandDefinitions } from "./commands/definitions.js";
 import { handleInteraction } from "./commands/interaction-handler.js";
 import type { AppConfig } from "./config/schema.js";
-import { assertDatabaseHealthy, createDatabase, type DatabaseContext } from "./database/client.js";
+import { MongoDatabaseContext } from "./database/mongo-client.js";
 import { createGuildMemberAddHandler } from "./events/guild-member-add.js";
 import { createGuildMemberRemoveHandler } from "./events/guild-member-remove.js";
 import { createGuildMemberUpdateHandler } from "./events/guild-member-update.js";
@@ -22,30 +21,30 @@ import { AdministrativeNicknameParser } from "./parsers/administrative-nickname-
 import { OpggParser } from "./parsers/opgg-parser.js";
 import { DiscordMemberMutationQueue } from "./queues/discord-member-mutation-queue.js";
 import { RiotRequestQueue } from "./queues/riot-request-queue.js";
-import { AuditRepository } from "./repositories/audit-repository.js";
-import { MigrationRepository } from "./repositories/migration-repository.js";
-import { PendingOperationRepository } from "./repositories/pending-operation-repository.js";
-import { RegistrationRepository } from "./repositories/registration-repository.js";
-import { WorkerLeaseRepository } from "./repositories/worker-lease-repository.js";
+import { AuditRepository } from "./repositories/mongo/audit-repository.js";
+import { MigrationRepository } from "./repositories/mongo/migration-repository.js";
+import { PendingOperationRepository } from "./repositories/mongo/pending-operation-repository.js";
+import { RegistrationRepository } from "./repositories/mongo/registration-repository.js";
+import { WorkerLeaseRepository } from "./repositories/mongo/worker-lease-repository.js";
 import { MemberStateReconciler } from "./services/member-state-reconciler.js";
 import { MigrationService } from "./services/migration-service.js";
 import { NicknameService } from "./services/nickname-service.js";
 import { PermissionService } from "./services/permission-service.js";
 import { RegistrationService } from "./services/registration-service.js";
 import { AdministrativeNicknameService } from "./services/administrative-nickname-service.js";
-import { LeagueRepository } from "./repositories/league-repository.js";
+import { LeagueRepository } from "./repositories/mongo/league-repository.js";
 import { RiotLeagueService } from "./integrations/riot/riot-league-service.js";
 import { LeagueStatsWorker } from "./jobs/league-stats-worker.js";
 import { ChampionCatalog } from "./integrations/riot/champion-catalog.js";
 import type { RankRoleIds, RankRoleKey } from "./types/domain.js";
 import { createLeagueMentionHandler } from "./commands/league-mention-handler.js";
 import { RankRoleStartupSweep } from "./services/rank-role-startup-sweep.js";
-import { DiscordAuditOutboxRepository } from "./repositories/discord-audit-outbox-repository.js";
+import { DiscordAuditOutboxRepository } from "./repositories/mongo/discord-audit-outbox-repository.js";
 import { DiscordAuditPresenter } from "./services/discord-audit-presenter.js";
 import { DiscordAuditLogWorker } from "./jobs/discord-audit-log-worker.js";
 
 export class BotApplication {
-	private readonly database: DatabaseContext;
+	private readonly database: MongoDatabaseContext;
 	private readonly client: Client;
 	private readonly discordQueue: DiscordMemberMutationQueue;
 	private readonly riotQueue: RiotRequestQueue;
@@ -57,11 +56,7 @@ export class BotApplication {
 		private readonly config: AppConfig,
 		private readonly logger: Logger
 	) {
-		this.database = createDatabase(config.DATABASE_PATH);
-		migrate(this.database.db, {
-			migrationsFolder: "./src/database/migrations",
-		});
-		assertDatabaseHealthy(this.database);
+		this.database = new MongoDatabaseContext(config.MONGODB_URI, config.MONGODB_DATABASE, config.MASTERY_HISTORY_RETENTION_DAYS, logger);
 		const intents = [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers];
 		if (config.BOT_MENTION_COMMANDS_ENABLED) intents.push(GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent);
 		this.client = new Client({ intents });
@@ -135,6 +130,7 @@ export class BotApplication {
 	}
 
 	async start(): Promise<void> {
+		await this.database.connect();
 		await this.client.login(this.config.DISCORD_TOKEN);
 		await new Promise<void>((resolve, reject) => {
 			if (this.client.isReady()) return resolve();
@@ -151,7 +147,7 @@ export class BotApplication {
 		if (diagnostics.errors.length) throw new Error(`Discord diagnostics failed:\n${diagnostics.errors.join("\n")}`);
 		if (this.config.RANK_ROLE_SYNC_ENABLED) {
 			const members = await guild.members.fetch();
-			this.rankRoleSweep.run(guild.id, members);
+			await this.rankRoleSweep.run(guild.id, members);
 		}
 		await guild.commands.set(commandDefinitions(new Localizer(this.config.BOT_LOCALE, this.config.BOT_TIME_ZONE)).map((command) => command.toJSON()));
 		this.client.user?.setPresence({
@@ -171,8 +167,7 @@ export class BotApplication {
 		this.discordQueue.stop();
 		this.riotQueue.stop();
 		this.client.destroy();
-		this.database.sqlite.pragma("wal_checkpoint(TRUNCATE)");
-		this.database.sqlite.close();
+		await this.database.close();
 		this.logger.info("Graceful shutdown completed");
 	}
 }

@@ -2,7 +2,7 @@
 
 [Nutzungsbedingungen](https://vexify4103.github.io/discord-registration-bot/terms.html) · [Datenschutzerklärung](https://vexify4103.github.io/discord-registration-bot/privacy.html)
 
-Ein einzelner TypeScript/discord.js-Prozess verwaltet Registrierungen, Riot-Identitäten, Discord-Rollen, Nicknames sowie League-Ränge und Champion-Mastery. SQLite/Drizzle ist die Quelle der Wahrheit. Ein Web-Dashboard ist nicht erforderlich.
+Ein einzelner TypeScript/discord.js-Prozess verwaltet Registrierungen, Riot-Identitäten, Discord-Rollen, Nicknames sowie League-Ränge und Champion-Mastery. MongoDB ist die Quelle der Wahrheit. Ein Web-Dashboard ist nicht erforderlich.
 
 Der Bot zeigt standardmäßig die Aktivität **Spielt Rollen-Tetris**. Der Text kann über `BOT_ACTIVITY_TEXT` geändert werden.
 
@@ -14,7 +14,7 @@ Für Sapphire-artige Aktionsprotokolle wird im gewünschten Discord-Kanal ein ei
 BOT_LOG_WEBHOOK_URL=https://discord.com/api/webhooks/WEBHOOK_ID/WEBHOOK_TOKEN
 ```
 
-Bleibt der Wert leer, ist die Discord-Protokollierung deaktiviert. Neue Registrierungs-, Rollen-, Nickname-, Mitglieder-, Cleanup- und Migrationsaktionen werden als deutsche, farbige Embeds versendet. Der Versand erfolgt seriell über eine dauerhafte SQLite-Outbox; temporäre Discord- oder Rate-Limit-Fehler werden mit wachsendem Abstand erneut versucht. Bereits vor der Aktivierung gespeicherte Auditereignisse werden nicht nachträglich versendet. Interne Einzelklassifikationen einer Migrationsvorschau bleiben im lokalen Auditprotokoll und werden im Discord-Kanal durch eine zusammengefasste Migrationsmeldung ersetzt.
+Bleibt der Wert leer, ist die Discord-Protokollierung deaktiviert. Neue Registrierungs-, Rollen-, Nickname-, Mitglieder-, Cleanup- und Migrationsaktionen werden als deutsche, farbige Embeds versendet. Der Versand erfolgt seriell über eine dauerhafte MongoDB-Outbox; temporäre Discord- oder Rate-Limit-Fehler werden mit wachsendem Abstand erneut versucht. Bereits vor der Aktivierung gespeicherte Auditereignisse werden nicht nachträglich versendet. Interne Einzelklassifikationen einer Migrationsvorschau bleiben im Datenbank-Auditprotokoll und werden im Discord-Kanal durch eine zusammengefasste Migrationsmeldung ersetzt.
 
 Die Webhook-URL ist einem Bot-Token gleichzustellen: niemals in Git committen oder in Logs einfügen. Der Logkanal sollte nur für autorisierte Teammitglieder sichtbar sein. Embeds enthalten Discord-Erwähnungen, Rollen, Aktionsgrund, Ergebnis und Zeitstempel, aber keine persönlichen Anzeigenamen, Riot-IDs, PUUIDs, Nickname-Inhalte, Tokens oder rohen Fehlertexte. Erwähnungen in diesen Meldungen lösen keine Benachrichtigung aus.
 
@@ -23,7 +23,7 @@ Die Webhook-URL ist einem Bot-Token gleichzustellen: niemals in Git committen od
 1. Node.js 24 LTS installieren.
 2. `.env.example` nach `.env` kopieren und Werte ergänzen.
 3. `npm install`
-4. `npm run db:migrate`
+4. Eine MongoDB-Replikatgruppe bereitstellen und `MONGODB_URI` sowie `MONGODB_DATABASE` setzen.
 5. `npm test && npm run build`
 6. `npm run dev`
 
@@ -41,7 +41,7 @@ Automatische Entfernungen nicht registrierter Mitglieder sind standardmäßig de
 
 - `/league profile`, `/league mastery`, `/league chart`, `/league top`, `/league refresh`, `/league roles`, `/league help` und `/league about` ersetzen die Discord-relevanten Profilfunktionen von OriannaBot.
 - Rangrollen verwenden ausschließlich den höheren Rang aus **Solo/Duo** und **Flex**. TFT wird vollständig ausgeschlossen. Ein erfolgreich geprüftes Konto ohne Solo-/Flex-Rang erhält die eigene Unranked-Rolle.
-- Mastery-Snapshots werden lokal in SQLite gespeichert. Verlaufsdiagramme beginnen daher mit dem ersten erfolgreichen Abruf nach Aktivierung dieser Version; historische Riot-Daten lassen sich nicht rückwirkend erzeugen.
+- Mastery-Änderungen werden in MongoDB für standardmäßig 730 Tage gespeichert. Verlaufsdiagramme beginnen mit dem ersten erkannten Punktewechsel; historische Riot-Daten lassen sich nicht rückwirkend erzeugen.
 - `JOIN_ENGAGEMENT_ENABLED=true` sendet neuen, noch nicht registrierten Menschen eine deutsche Willkommens-DM mit dem Hinweis auf `/register`.
 - Optional akzeptiert `BOT_MENTION_COMMANDS_ENABLED=true` zusätzlich Orianna-artige Nachrichten wie `@Bot profil`, `@Bot mastery @Mitglied`, `@Bot stats Ahri`, `@Bot top Ahri`, `@Bot refresh` und `@Bot rollen`. Dafür müssen im Discord Developer Portal der **Message Content Intent** und für den Bot **Nachrichten anzeigen/senden** aktiviert sein.
 - Die Riot-Warteschlange verwendet standardmäßig mindestens 1.250 ms Abstand zwischen Anfragen und respektiert zusätzlich `Retry-After`.

@@ -51,6 +51,8 @@ export const messageKeys = [
 	"league.rolesBody",
 	"league.helpTitle",
 	"league.helpBody",
+	"league.mentionHelpTitle",
+	"league.mentionHelpBody",
 	"league.aboutTitle",
 	"league.aboutBody",
 	"league.championNotFound",

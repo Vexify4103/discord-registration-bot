@@ -46,4 +46,9 @@ describe("German localization", () => {
 		}
 	});
 	it("prevents mention injection", () => expect(i18n.t("migration.previewBody", { total: "@everyone" })).not.toContain("@everyone"));
+	it("uses production-facing mention help without configuration diagnostics", () => {
+		expect(i18n.t("league.helpBody")).not.toContain("Mention-Befehle aktiviert");
+		expect(i18n.t("league.mentionHelpBody")).toContain("Alle Funktionen");
+		expect(i18n.t("league.mentionHelpBody")).not.toContain("aktiviert");
+	});
 });

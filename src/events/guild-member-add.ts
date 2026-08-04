@@ -1,8 +1,8 @@
 import type { GuildMember } from "discord.js";
 import type { Logger } from "pino";
-import type { RegistrationRepository } from "../repositories/registration-repository.js";
+import type { RegistrationRepository } from "../repositories/mongo/registration-repository.js";
 import type { MemberReconciliationService } from "../integrations/discord/member-reconciliation-service.js";
-import type { AuditRepository } from "../repositories/audit-repository.js";
+import type { AuditRepository } from "../repositories/mongo/audit-repository.js";
 import type { Localizer } from "../localization/formatter.js";
 
 export function createGuildMemberAddHandler(
@@ -16,8 +16,8 @@ export function createGuildMemberAddHandler(
 	return async (member: GuildMember): Promise<void> => {
 		if (member.user.bot) return;
 		try {
-			const registration = registrations.upsertJoined(member.guild.id, member.id, member.user.username, member.joinedTimestamp ?? Date.now());
-			audits.create({
+			const registration = await registrations.upsertJoined(member.guild.id, member.id, member.user.username, member.joinedTimestamp ?? Date.now());
+			await audits.create({
 				guildId: member.guild.id,
 				targetUserId: member.id,
 				action: "MEMBER_JOINED",
