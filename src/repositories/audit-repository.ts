@@ -1,9 +1,13 @@
 import { and, eq, lt } from "drizzle-orm";
 import type { DatabaseContext } from "../database/client.js";
-import { auditEvents } from "../database/schema/index.js";
+import { auditEvents, discordAuditOutbox } from "../database/schema/index.js";
+import { enqueueDiscordAudit } from "./discord-audit-outbox.js";
 
 export class AuditRepository {
-	constructor(private readonly database: DatabaseContext) {}
+	constructor(
+		private readonly database: DatabaseContext,
+		private readonly discordAuditEnabled = false
+	) {}
 
 	create(input: {
 		guildId: string;
@@ -16,20 +20,24 @@ export class AuditRepository {
 		now?: number;
 	}): void {
 		const now = input.now ?? Date.now();
-		this.database.db
-			.insert(auditEvents)
-			.values({
-				id: crypto.randomUUID(),
-				guildId: input.guildId,
-				targetUserId: input.targetUserId ?? null,
-				actorUserId: input.actorUserId ?? null,
-				action: input.action,
-				result: input.result,
-				metadata: JSON.stringify(input.metadata ?? {}),
-				correlationId: input.correlationId ?? crypto.randomUUID(),
-				createdAt: now,
-			})
-			.run();
+		this.database.sqlite.transaction(() => {
+			const id = crypto.randomUUID();
+			this.database.db
+				.insert(auditEvents)
+				.values({
+					id,
+					guildId: input.guildId,
+					targetUserId: input.targetUserId ?? null,
+					actorUserId: input.actorUserId ?? null,
+					action: input.action,
+					result: input.result,
+					metadata: JSON.stringify(input.metadata ?? {}),
+					correlationId: input.correlationId ?? crypto.randomUUID(),
+					createdAt: now,
+				})
+				.run();
+			enqueueDiscordAudit(this.database, this.discordAuditEnabled, id, input.guildId, input.action, now);
+		})();
 	}
 
 	scrubUser(guildId: string, userId: string): void {
@@ -41,6 +49,9 @@ export class AuditRepository {
 	}
 
 	deleteOlderThan(cutoff: number): number {
-		return this.database.db.delete(auditEvents).where(lt(auditEvents.createdAt, cutoff)).run().changes;
+		return this.database.sqlite.transaction(() => {
+			this.database.db.delete(discordAuditOutbox).where(lt(discordAuditOutbox.createdAt, cutoff)).run();
+			return this.database.db.delete(auditEvents).where(lt(auditEvents.createdAt, cutoff)).run().changes;
+		})();
 	}
 }

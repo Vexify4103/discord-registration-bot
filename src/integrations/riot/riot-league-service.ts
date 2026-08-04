@@ -4,11 +4,10 @@ import { RiotRequestQueue } from "../../queues/riot-request-queue.js";
 import { isRankedTier } from "../../services/rank-service.js";
 
 export type LeagueStatsResult =
-	| { kind: "success"; summonerId: string; summonerLevel: number; profileIconId: number; entries: RankedEntry[]; masteries: ChampionMastery[] }
+	| { kind: "success"; summonerId: null; summonerLevel: number; profileIconId: number; entries: RankedEntry[]; masteries: ChampionMastery[] }
 	| { kind: "not-found" | "authentication-failure" | "temporary-failure"; code: string };
 
 interface SummonerDto {
-	id?: unknown;
 	summonerLevel?: unknown;
 	profileIconId?: unknown;
 }
@@ -25,9 +24,8 @@ export class RiotLeagueService {
 		const host = platformRegion.toLowerCase();
 		const summoner = await this.request<SummonerDto>(host, `/lol/summoner/v4/summoners/by-puuid/${encodeURIComponent(puuid)}`, priority);
 		if (summoner.kind !== "success") return summoner;
-		if (typeof summoner.data.id !== "string") return { kind: "temporary-failure", code: "INVALID_SUMMONER_RESPONSE" };
 		const [league, mastery] = await Promise.all([
-			this.request<unknown[]>(host, `/lol/league/v4/entries/by-summoner/${encodeURIComponent(summoner.data.id)}`, priority),
+			this.request<unknown[]>(host, `/lol/league/v4/entries/by-puuid/${encodeURIComponent(puuid)}`, priority),
 			this.request<unknown[]>(host, `/lol/champion-mastery/v4/champion-masteries/by-puuid/${encodeURIComponent(puuid)}`, priority),
 		]);
 		if (league.kind !== "success") return league;
@@ -35,7 +33,7 @@ export class RiotLeagueService {
 		if (!Array.isArray(league.data) || !Array.isArray(mastery.data)) return { kind: "temporary-failure", code: "INVALID_LEAGUE_RESPONSE" };
 		return {
 			kind: "success",
-			summonerId: summoner.data.id,
+			summonerId: null,
 			summonerLevel: numberOrZero(summoner.data.summonerLevel),
 			profileIconId: numberOrZero(summoner.data.profileIconId),
 			entries: league.data.flatMap(parseRankedEntry),
@@ -78,7 +76,7 @@ export class RiotLeagueService {
 					await delay(500 * 2 ** attempt);
 					continue;
 				}
-				return { kind: "temporary-failure" as const, code: "RIOT_REQUEST_FAILED" };
+				return { kind: "temporary-failure" as const, code: `RIOT_HTTP_${response.status}` };
 			} catch (error) {
 				this.logger.warn({ err: error, attempt }, "Riot League request failed");
 				if (attempt === this.maxRetries) return { kind: "temporary-failure" as const, code: "RIOT_NETWORK" };

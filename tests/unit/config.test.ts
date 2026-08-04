@@ -31,6 +31,21 @@ describe("bot presence configuration", () => {
 	it("keeps mention commands opt-in", () => expect(configSchema.parse(requiredEnvironment).BOT_MENTION_COMMANDS_ENABLED).toBe(false));
 });
 
+describe("Discord audit webhook configuration", () => {
+	it("keeps webhook logging optional", () => expect(configSchema.parse(requiredEnvironment).BOT_LOG_WEBHOOK_URL).toBeUndefined());
+	it("accepts an incoming Discord webhook", () =>
+		expect(
+			configSchema.parse({
+				...requiredEnvironment,
+				BOT_LOG_WEBHOOK_URL: "https://discord.com/api/webhooks/100000000000000099/example_token-value",
+			}).BOT_LOG_WEBHOOK_URL
+		).toContain("discord.com/api/webhooks"));
+	it("rejects non-Discord and malformed webhook URLs", () => {
+		expect(() => configSchema.parse({ ...requiredEnvironment, BOT_LOG_WEBHOOK_URL: "https://example.com/api/webhooks/100000000000000099/token" })).toThrow();
+		expect(() => configSchema.parse({ ...requiredEnvironment, BOT_LOG_WEBHOOK_URL: "https://discord.com/channels/100/200" })).toThrow();
+	});
+});
+
 describe("rank role configuration", () => {
 	it("allows the feature to remain disabled without role IDs", () => expect(configSchema.parse(requiredEnvironment).RANK_ROLE_SYNC_ENABLED).toBe(false));
 	it("requires every distinct tier role when enabled", () =>

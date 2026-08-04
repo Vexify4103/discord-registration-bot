@@ -52,6 +52,13 @@ export class MigrationService {
 			examples[item.parsed.category] ??= [];
 			if (examples[item.parsed.category]!.length < 3) examples[item.parsed.category]!.push(maskExample(item.nickname, item.userId));
 		}
+		this.audits.create({
+			guildId: guild.id,
+			actorUserId: actorId,
+			action: "MIGRATION_PREVIEW_CREATED",
+			result: "SUCCESS",
+			metadata: { migrationJobId: job.id, total: items.length },
+		});
 		return { jobId: job.id, token, total: items.length, counts, examples };
 	}
 
@@ -92,6 +99,13 @@ export class MigrationService {
 			examples[item.parsed.category] ??= [];
 			if (examples[item.parsed.category]!.length < 3) examples[item.parsed.category]!.push(maskExample(item.nickname, item.userId));
 		}
+		this.audits.create({
+			guildId: guild.id,
+			actorUserId: actorId,
+			action: "MIGRATION_REVIEW_PREVIEW_CREATED",
+			result: "SUCCESS",
+			metadata: { migrationJobId: job.id, total: items.length },
+		});
 		return { jobId: job.id, token, total: items.length, counts, examples };
 	}
 
@@ -122,6 +136,13 @@ export class MigrationService {
 				this.migrations.items(jobId).map((item) => item.userId)
 			);
 		else this.migrations.start(jobId);
+		this.audits.create({
+			guildId: job.guildId,
+			actorUserId: actorId,
+			action: "MIGRATION_STARTED",
+			result: "SUCCESS",
+			metadata: { migrationJobId: job.id },
+		});
 		return true;
 	}
 

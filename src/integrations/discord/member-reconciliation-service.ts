@@ -51,7 +51,10 @@ export class MemberReconciliationService {
 					targetUserId: userId,
 					action: operation.type,
 					result: result.kind.toUpperCase(),
-					metadata: "code" in result ? { errorCode: result.code } : {},
+					metadata: {
+						...(operation.type.includes("ROLE") && operation.value ? { roleId: operation.value } : {}),
+						...("code" in result ? { errorCode: result.code } : {}),
+					},
 				});
 				if (result.kind !== "success" && result.kind !== "no-op") return result;
 				rolesChanged ||= operation.type.includes("ROLE");

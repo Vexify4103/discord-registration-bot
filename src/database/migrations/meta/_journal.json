@@ -36,6 +36,13 @@
       "when": 1785845239741,
       "tag": "0004_rare_karen_page",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1785854983440,
+      "tag": "0005_same_molten_man",
+      "breakpoints": true
     }
   ]
 }

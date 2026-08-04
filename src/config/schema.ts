@@ -18,12 +18,30 @@ const csv = z
 	);
 const snowflake = z.string().regex(/^\d{15,22}$/);
 const optionalSnowflake = z.preprocess((value) => (value === "" ? undefined : value), snowflake.optional());
+const optionalDiscordWebhookUrl = z.preprocess(
+	(value) => (value === "" ? undefined : value),
+	z
+		.string()
+		.url()
+		.refine((value) => {
+			const url = new URL(value);
+			return (
+				url.protocol === "https:" &&
+				["discord.com", "www.discord.com", "discordapp.com", "www.discordapp.com"].includes(url.hostname) &&
+				!url.search &&
+				!url.hash &&
+				/^\/api(?:\/v\d+)?\/webhooks\/\d{15,22}\/[A-Za-z0-9._-]+\/?$/.test(url.pathname)
+			);
+		}, "BOT_LOG_WEBHOOK_URL muss eine gültige Discord-Webhook-URL sein.")
+		.optional()
+);
 
 export const configSchema = z
 	.object({
 		DISCORD_TOKEN: z.string().min(20),
 		DISCORD_APPLICATION_ID: snowflake,
 		DISCORD_GUILD_ID: snowflake,
+		BOT_LOG_WEBHOOK_URL: optionalDiscordWebhookUrl,
 		DATABASE_PATH: z.string().min(1).default("./data/bot.sqlite"),
 		VERIFIED_NAMED_ROLE_ID: snowflake,
 		VERIFIED_PRIVATE_ROLE_ID: snowflake,

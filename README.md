@@ -6,6 +6,18 @@ Ein einzelner TypeScript/discord.js-Prozess verwaltet Registrierungen, Riot-Iden
 
 Der Bot zeigt standardmäßig die Aktivität **Spielt Rollen-Tetris**. Der Text kann über `BOT_ACTIVITY_TEXT` geändert werden.
 
+### Discord-Auditkanal
+
+Für Sapphire-artige Aktionsprotokolle wird im gewünschten Discord-Kanal ein eingehender Webhook angelegt und dessen URL ausschließlich in `.env` gespeichert:
+
+```env
+BOT_LOG_WEBHOOK_URL=https://discord.com/api/webhooks/WEBHOOK_ID/WEBHOOK_TOKEN
+```
+
+Bleibt der Wert leer, ist die Discord-Protokollierung deaktiviert. Neue Registrierungs-, Rollen-, Nickname-, Mitglieder-, Cleanup- und Migrationsaktionen werden als deutsche, farbige Embeds versendet. Der Versand erfolgt seriell über eine dauerhafte SQLite-Outbox; temporäre Discord- oder Rate-Limit-Fehler werden mit wachsendem Abstand erneut versucht. Bereits vor der Aktivierung gespeicherte Auditereignisse werden nicht nachträglich versendet. Interne Einzelklassifikationen einer Migrationsvorschau bleiben im lokalen Auditprotokoll und werden im Discord-Kanal durch eine zusammengefasste Migrationsmeldung ersetzt.
+
+Die Webhook-URL ist einem Bot-Token gleichzustellen: niemals in Git committen oder in Logs einfügen. Der Logkanal sollte nur für autorisierte Teammitglieder sichtbar sein. Embeds enthalten Discord-Erwähnungen, Rollen, Aktionsgrund, Ergebnis und Zeitstempel, aber keine persönlichen Anzeigenamen, Riot-IDs, PUUIDs, Nickname-Inhalte, Tokens oder rohen Fehlertexte. Erwähnungen in diesen Meldungen lösen keine Benachrichtigung aus.
+
 ## Entwicklung
 
 1. Node.js 24 LTS installieren.

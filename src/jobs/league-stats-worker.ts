@@ -9,6 +9,7 @@ import { operationPriorities } from "../types/domain.js";
 export class LeagueStatsWorker {
 	private timer?: NodeJS.Timeout;
 	private running = false;
+	private authenticationPaused = false;
 	constructor(
 		private readonly config: AppConfig,
 		private readonly league: LeagueRepository,
@@ -28,14 +29,33 @@ export class LeagueStatsWorker {
 	}
 
 	async tick(): Promise<void> {
-		if (this.running || !this.leases.acquire("league-stats", 15 * 60_000)) return;
+		if (this.running || this.authenticationPaused || !this.leases.acquire("league-stats", 15 * 60_000)) return;
 		this.running = true;
 		try {
 			const due = this.league.due(Date.now(), this.config.LEAGUE_STATS_BATCH_SIZE);
 			if (!due.length) return;
 			let succeeded = 0;
-			for (const registration of due) if (await this.syncRegistration(registration.guildId, registration.userId, 35)) succeeded++;
-			this.logger.info({ batchSize: due.length, succeeded, failed: due.length - succeeded }, "League stats synchronization batch completed");
+			let failed = 0;
+			let processed = 0;
+			const failureCodes: Record<string, number> = {};
+			for (const registration of due) {
+				const outcome = await this.syncRegistration(registration.guildId, registration.userId, 35);
+				processed++;
+				if (outcome.kind === "success") succeeded++;
+				else {
+					failed++;
+					failureCodes[outcome.code] = (failureCodes[outcome.code] ?? 0) + 1;
+				}
+				if (outcome.kind === "authentication-failure") {
+					this.authenticationPaused = true;
+					this.logger.error({ errorCode: outcome.code }, "League stats synchronization paused because Riot authentication failed");
+					break;
+				}
+			}
+			this.logger.info(
+				{ batchSize: due.length, processed, succeeded, failed, failureCodes, authenticationPaused: this.authenticationPaused },
+				"League stats synchronization batch completed"
+			);
 		} catch (error) {
 			this.logger.error({ err: error }, "League stats worker failed");
 		} finally {
@@ -45,22 +65,22 @@ export class LeagueStatsWorker {
 	}
 
 	async syncOne(guildId: string, userId: string): Promise<boolean> {
-		return this.syncRegistration(guildId, userId, 70);
+		return (await this.syncRegistration(guildId, userId, 70)).kind === "success";
 	}
 
-	private async syncRegistration(guildId: string, userId: string, priority: number): Promise<boolean> {
+	private async syncRegistration(guildId: string, userId: string, priority: number): Promise<{ kind: "success" } | { kind: "failure" | "authentication-failure"; code: string }> {
 		const registration = this.registrations.get(guildId, userId);
-		if (!registration?.puuid || !registration.platformRegion || registration.status !== "REGISTERED") return false;
+		if (!registration?.puuid || !registration.platformRegion || registration.status !== "REGISTERED") return { kind: "failure", code: "REGISTRATION_NOT_ELIGIBLE" };
 		const result = await this.riot.stats(registration.platformRegion, registration.puuid, priority);
 		const now = Date.now();
 		if (result.kind !== "success") {
 			this.league.fail(guildId, userId, result.code, now + 60 * 60_000, now);
-			return false;
+			return { kind: result.kind === "authentication-failure" ? "authentication-failure" : "failure", code: result.code };
 		}
 		const next = now + this.config.LEAGUE_STATS_SYNC_INTERVAL_HOURS * 60 * 60_000 + deterministicJitter(userId);
 		this.league.save(guildId, userId, { ...result, puuid: registration.puuid }, next, now);
 		if (this.config.RANK_ROLE_SYNC_ENABLED) this.registrations.requestReconciliation(guildId, userId, operationPriorities.RIOT_SYNC, now);
-		return true;
+		return { kind: "success" };
 	}
 }
 

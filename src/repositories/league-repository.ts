@@ -6,7 +6,7 @@ import type { ChampionMastery, RankedEntry } from "../types/domain.js";
 
 export interface LeagueSyncData {
 	puuid: string;
-	summonerId: string;
+	summonerId: string | null;
 	summonerLevel: number;
 	profileIconId: number;
 	entries: RankedEntry[];

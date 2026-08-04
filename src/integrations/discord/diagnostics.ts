@@ -1,6 +1,7 @@
-import { GatewayIntentBits, PermissionFlagsBits, type Client, type Guild } from "discord.js";
+import { DiscordAPIError, GatewayIntentBits, PermissionFlagsBits, type Client, type Guild } from "discord.js";
 import type { AppConfig } from "../../config/schema.js";
 import { Localizer } from "../../localization/formatter.js";
+import { parseDiscordWebhookUrl } from "../../utils/discord-webhook.js";
 
 export interface DiagnosticResult {
 	errors: string[];
@@ -10,6 +11,18 @@ export interface DiagnosticResult {
 export async function diagnoseGuild(client: Client, guild: Guild, config: AppConfig, i18n: Localizer): Promise<DiagnosticResult> {
 	const errors: string[] = [];
 	const warnings: string[] = [];
+	if (config.BOT_LOG_WEBHOOK_URL) {
+		const credentials = parseDiscordWebhookUrl(config.BOT_LOG_WEBHOOK_URL);
+		if (!credentials) errors.push(i18n.t("permissions.logWebhookInvalid"));
+		else
+			try {
+				const webhook = await client.fetchWebhook(credentials.id, credentials.token);
+				if (webhook.guildId !== guild.id) errors.push(i18n.t("permissions.logWebhookInvalid"));
+			} catch (error) {
+				if (error instanceof DiscordAPIError && [401, 403, 404].includes(error.status)) errors.push(i18n.t("permissions.logWebhookInvalid"));
+				else warnings.push(i18n.t("permissions.logWebhookUnavailable"));
+			}
+	}
 	const named = guild.roles.cache.get(config.VERIFIED_NAMED_ROLE_ID);
 	const privateRole = guild.roles.cache.get(config.VERIFIED_PRIVATE_ROLE_ID);
 	const unregistered = guild.roles.cache.get(config.UNREGISTERED_ROLE_ID);

@@ -13,6 +13,8 @@ Unterstützt werden Raspberry Pi 4/5 mit 64-Bit Raspberry Pi OS, Node.js 24 LTS 
 
 Die Bot-Rolle benötigt zusätzlich **Audit-Log anzeigen**, damit manuelle Nickname-Änderungen ausschließlich dann als Registrierungsänderung übernommen werden, wenn Discord sie einem berechtigten Staff-Mitglied zuordnet.
 
+Für den Discord-Auditkanal im gewünschten Kanal einen eingehenden Webhook erstellen und `BOT_LOG_WEBHOOK_URL` setzen. Die URL ist geheim und darf weder im Repository noch in PM2-Ausgaben erscheinen. Beim Start prüft der Bot, ob der Webhook erreichbar ist und zum konfigurierten Server gehört. Discord begrenzt auch Webhooks; die persistente Outbox sendet deshalb seriell und wiederholt temporär fehlgeschlagene Meldungen automatisch.
+
 Für die League-Erweiterung werden alle `RANK_ROLE_*_ID`-Werte aus `.env.example` mit den bestehenden Discord-Rollen befüllt und anschließend `RANK_ROLE_SYNC_ENABLED=true` gesetzt. Die Unranked-Rolle und alle zehn Rangrollen müssen eindeutige IDs haben; die Bot-Rolle muss über ihnen stehen. Mit `JOIN_ENGAGEMENT_ENABLED=true` erhalten neue, nicht registrierte Mitglieder eine Willkommens-DM. `BOT_MENTION_COMMANDS_ENABLED=true` aktiviert zusätzlich `@Bot ...`-Befehle; dafür muss im Discord Developer Portal unter **Bot → Privileged Gateway Intents** der **Message Content Intent** eingeschaltet sein. `RIOT_SYNC_MIN_DELAY_MS=1250` ist für einen persönlichen Schlüssel mit 100 Anfragen pro zwei Minuten die sichere Mindestkonfiguration.
 
 Nach dem Update in dieser Reihenfolge ausführen:

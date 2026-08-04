@@ -40,6 +40,9 @@ import { ChampionCatalog } from "./integrations/riot/champion-catalog.js";
 import type { RankRoleIds, RankRoleKey } from "./types/domain.js";
 import { createLeagueMentionHandler } from "./commands/league-mention-handler.js";
 import { RankRoleStartupSweep } from "./services/rank-role-startup-sweep.js";
+import { DiscordAuditOutboxRepository } from "./repositories/discord-audit-outbox-repository.js";
+import { DiscordAuditPresenter } from "./services/discord-audit-presenter.js";
+import { DiscordAuditLogWorker } from "./jobs/discord-audit-log-worker.js";
 
 export class BotApplication {
 	private readonly database: DatabaseContext;
@@ -63,12 +66,14 @@ export class BotApplication {
 		if (config.BOT_MENTION_COMMANDS_ENABLED) intents.push(GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent);
 		this.client = new Client({ intents });
 		const i18n = new Localizer(config.BOT_LOCALE, config.BOT_TIME_ZONE);
-		const registrations = new RegistrationRepository(this.database, config.REGISTRATION_DATA_RETENTION_DAYS);
+		const auditLogEnabled = Boolean(config.BOT_LOG_WEBHOOK_URL);
+		const registrations = new RegistrationRepository(this.database, config.REGISTRATION_DATA_RETENTION_DAYS, auditLogEnabled);
 		this.rankRoleSweep = new RankRoleStartupSweep(registrations, logger);
 		const league = new LeagueRepository(this.database);
 		const operations = new PendingOperationRepository(this.database);
 		const migrations = new MigrationRepository(this.database);
-		const audits = new AuditRepository(this.database);
+		const audits = new AuditRepository(this.database, auditLogEnabled);
+		const auditOutbox = new DiscordAuditOutboxRepository(this.database);
 		const leases = new WorkerLeaseRepository(this.database);
 		const permissions = new PermissionService(config);
 		const nicknames = new NicknameService(config.UNREGISTERED_NICKNAME_TEMPLATE);
@@ -94,6 +99,7 @@ export class BotApplication {
 		const riotSync = new RiotSyncWorker(config, registrations, riot, leases, logger);
 		const leagueStats = new LeagueStatsWorker(config, league, registrations, riotLeague, leases, logger);
 		this.workers = [
+			new DiscordAuditLogWorker(config, auditOutbox, new DiscordAuditPresenter(config, i18n), leases, logger),
 			new DiscordOperationWorker(config, operations, this.discordQueue, reconciliation, leases, logger),
 			new MigrationWorker(this.client, config, migrations, registrations, riot, leases, logger),
 			new CleanupWorker(this.client, config, registrations, permissions, this.discordQueue, i18n, leases, audits, logger),
@@ -116,6 +122,7 @@ export class BotApplication {
 			league,
 			leagueStats,
 			champions,
+			audits,
 		};
 		this.client.on(Events.InteractionCreate, (interaction) => void handleInteraction(interaction, interactionContext));
 		this.client.on(Events.MessageCreate, createLeagueMentionHandler(interactionContext, logger));

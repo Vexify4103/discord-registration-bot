@@ -198,6 +198,22 @@ export const auditEvents = sqliteTable(
 	(t) => [index("audit_events_target_idx").on(t.guildId, t.targetUserId, t.createdAt), index("audit_events_expiry_idx").on(t.createdAt)]
 );
 
+export const discordAuditOutbox = sqliteTable(
+	"discord_audit_outbox",
+	{
+		eventId: text("event_id")
+			.primaryKey()
+			.references(() => auditEvents.id, { onDelete: "cascade" }),
+		guildId: text("guild_id").notNull(),
+		attemptCount: integer("attempt_count").notNull().default(0),
+		nextAttemptAt: integer("next_attempt_at", { mode: "number" }).notNull(),
+		lastErrorCode: text("last_error_code"),
+		terminal: integer("terminal", { mode: "boolean" }).notNull().default(false),
+		...timestamps,
+	},
+	(t) => [index("discord_audit_outbox_due_idx").on(t.terminal, t.nextAttemptAt, t.createdAt)]
+);
+
 export const registrationAttempts = sqliteTable(
 	"registration_attempts",
 	{
@@ -294,3 +310,5 @@ export type MigrationJob = typeof migrationJobs.$inferSelect;
 export type MigrationItem = typeof migrationItems.$inferSelect;
 export type LeagueProfile = typeof leagueProfiles.$inferSelect;
 export type ChampionMasteryRow = typeof championMasteries.$inferSelect;
+export type AuditEvent = typeof auditEvents.$inferSelect;
+export type DiscordAuditOutboxRow = typeof discordAuditOutbox.$inferSelect;

@@ -45,6 +45,20 @@ describe("RegistrationRepository", () => {
 		expect(row.displayName).toBe("Martin");
 		expect(context.sqlite.prepare("select count(*) count from pending_operations").get()).toMatchObject({ count: 1 });
 	});
+	it("commits a Discord audit outbox entry with a registration transition when enabled", () => {
+		const publishingRepository = new RegistrationRepository(context, 30, true);
+		publishingRepository.upsertJoined("audit-guild", "audit-user", "discord", 1);
+		publishingRepository.saveRegistered({
+			guildId: "audit-guild",
+			userId: "audit-user",
+			actorUserId: "audit-user",
+			discordUsername: "discord",
+			displayName: null,
+			nameVisibility: "HIDDEN",
+			identity,
+		});
+		expect(context.sqlite.prepare("SELECT COUNT(*) AS count FROM discord_audit_outbox").get()).toMatchObject({ count: 1 });
+	});
 	it("stores a verified member without Riot identity and excludes them from cleanup", () => {
 		repository.upsertJoined("1", "2", "discord", 1);
 		const row = repository.saveVerifiedWithoutRiot({

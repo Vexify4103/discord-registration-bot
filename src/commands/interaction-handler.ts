@@ -21,10 +21,12 @@ import { RegistrationService, type RegistrationResult } from "../services/regist
 import { manualReviewMessage, migrationStatusMessage } from "../services/migration-status-presenter.js";
 import { RiotSyncWorker } from "../jobs/riot-sync-worker.js";
 import { diagnoseGuild } from "../integrations/discord/diagnostics.js";
+import { safeErrorDetails } from "../logging/safe-error.js";
 import { handleLeagueCommand } from "./league-command-handler.js";
 import { LeagueRepository } from "../repositories/league-repository.js";
 import { LeagueStatsWorker } from "../jobs/league-stats-worker.js";
 import { ChampionCatalog } from "../integrations/riot/champion-catalog.js";
+import type { AuditRepository } from "../repositories/audit-repository.js";
 
 export interface InteractionContext {
 	client: Client;
@@ -41,6 +43,7 @@ export interface InteractionContext {
 	league: LeagueRepository;
 	leagueStats: LeagueStatsWorker;
 	champions: ChampionCatalog;
+	audits?: AuditRepository;
 }
 
 export async function handleInteraction(interaction: Interaction, context: InteractionContext): Promise<void> {
@@ -48,7 +51,7 @@ export async function handleInteraction(interaction: Interaction, context: Inter
 		if (interaction.isChatInputCommand()) await handleCommand(interaction, context);
 		else if (interaction.isButton()) await handleButton(interaction, context);
 	} catch (error) {
-		context.logger.error({ err: error, interactionId: interaction.id }, "Interaction failed");
+		context.logger.error({ error: safeErrorDetails(error), interactionId: interaction.id }, "Interaction failed");
 		if (interaction.isRepliable()) {
 			const payload = {
 				content: context.i18n.t("common.unexpectedError"),
@@ -248,6 +251,7 @@ async function handleSetup(interaction: ChatInputCommandInteraction, actor: Guil
 			return;
 		}
 		ctx.migrations.cancel(activeJob.id);
+		ctx.audits?.create({ guildId: interaction.guildId!, actorUserId: actor.id, action: "MIGRATION_CANCELLED", result: "SUCCESS", metadata: { migrationJobId: activeJob.id } });
 		await interaction.editReply(ctx.i18n.t("migration.activeCancelled"));
 		return;
 	}
@@ -286,6 +290,7 @@ async function handleSetup(interaction: ChatInputCommandInteraction, actor: Guil
 			return;
 		}
 		ctx.migrations.pause(job.id, "MANUAL");
+		ctx.audits?.create({ guildId: interaction.guildId!, actorUserId: actor.id, action: "MIGRATION_PAUSED", result: "SUCCESS", metadata: { migrationJobId: job.id } });
 		await interaction.editReply(ctx.i18n.t("migration.paused"));
 		return;
 	}
@@ -295,6 +300,7 @@ async function handleSetup(interaction: ChatInputCommandInteraction, actor: Guil
 			return;
 		}
 		ctx.migrations.resume(job.id);
+		ctx.audits?.create({ guildId: interaction.guildId!, actorUserId: actor.id, action: "MIGRATION_RESUMED", result: "SUCCESS", metadata: { migrationJobId: job.id } });
 		await interaction.editReply(ctx.i18n.t("migration.confirmed"));
 		return;
 	}
@@ -386,6 +392,7 @@ async function handleButton(interaction: ButtonInteraction, ctx: InteractionCont
 			return;
 		}
 		ctx.migrations.cancel(jobId!);
+		ctx.audits?.create({ guildId: interaction.guildId!, actorUserId: actorId!, action: "MIGRATION_CANCELLED", result: "SUCCESS", metadata: { migrationJobId: jobId! } });
 		await interaction.update({
 			content: ctx.i18n.t("migration.cancelled"),
 			components: [],

@@ -8,7 +8,7 @@ describe("RiotLeagueService", () => {
 	it("loads ranked and mastery data while excluding TFT", async () => {
 		const fetchMock = vi
 			.fn()
-			.mockResolvedValueOnce(new Response(JSON.stringify({ id: "summoner", summonerLevel: 100, profileIconId: 5 }), { status: 200 }))
+			.mockResolvedValueOnce(new Response(JSON.stringify({ puuid: "puuid", summonerLevel: 100, profileIconId: 5 }), { status: 200 }))
 			.mockResolvedValueOnce(
 				new Response(
 					JSON.stringify([
@@ -24,7 +24,7 @@ describe("RiotLeagueService", () => {
 		expect(result).toMatchObject({ kind: "success", entries: [{ queueType: "RANKED_SOLO_5x5", tier: "GOLD" }], masteries: [{ championId: 1, championPoints: 1234 }] });
 		expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
 			"https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/puuid",
-			"https://euw1.api.riotgames.com/lol/league/v4/entries/by-summoner/summoner",
+			"https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/puuid",
 			"https://euw1.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-puuid/puuid",
 		]);
 	});

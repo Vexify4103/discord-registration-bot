@@ -11,6 +11,7 @@ import {
 	retainedRegistrationData,
 	type Registration,
 } from "../database/schema/index.js";
+import { enqueueDiscordAudit } from "./discord-audit-outbox.js";
 import type { DiscordOperationType, NameVisibility, RegistrationIdentity } from "../types/domain.js";
 import { operationPriorities } from "../types/domain.js";
 import { buildOpggUrl } from "../parsers/opgg-parser.js";
@@ -52,7 +53,8 @@ export class DuplicatePuuidError extends Error {
 export class RegistrationRepository {
 	constructor(
 		private readonly database: DatabaseContext,
-		private readonly retentionDays: number
+		private readonly retentionDays: number,
+		private readonly discordAuditEnabled = false
 	) {}
 
 	get(guildId: string, userId: string): Registration | undefined {
@@ -731,10 +733,11 @@ export class RegistrationRepository {
 	}
 
 	private audit(guildId: string, targetUserId: string, actorUserId: string, action: string, result: string, metadata: Record<string, unknown>, now: number): void {
+		const id = crypto.randomUUID();
 		this.database.db
 			.insert(auditEvents)
 			.values({
-				id: crypto.randomUUID(),
+				id,
 				guildId,
 				targetUserId,
 				actorUserId,
@@ -745,6 +748,7 @@ export class RegistrationRepository {
 				createdAt: now,
 			})
 			.run();
+		enqueueDiscordAudit(this.database, this.discordAuditEnabled, id, guildId, action, now);
 	}
 }
 
