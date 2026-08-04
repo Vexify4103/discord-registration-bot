@@ -56,6 +56,7 @@ export const configSchema = z
 		VERIFIED_ROLES_MENTIONABLE: bool(false),
 		BOT_LOCALE: z.literal("de-DE").default("de-DE"),
 		BOT_TIME_ZONE: z.string().default("Europe/Berlin"),
+		BOT_ACTIVITY_TEXT: z.string().trim().min(1).max(128).default("Rollen-Tetris"),
 		LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
 	})
 	.superRefine((value, ctx) => {

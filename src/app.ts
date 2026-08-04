@@ -1,4 +1,4 @@
-import { Client, Events, GatewayIntentBits } from "discord.js";
+import { ActivityType, Client, Events, GatewayIntentBits } from "discord.js";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import type { Logger } from "pino";
 import { commandDefinitions } from "./commands/definitions.js";
@@ -124,6 +124,10 @@ export class BotApplication {
 		for (const warning of diagnostics.warnings) this.logger.warn({ diagnostic: warning }, "Discord role diagnostic warning");
 		if (diagnostics.errors.length) throw new Error(`Discord diagnostics failed:\n${diagnostics.errors.join("\n")}`);
 		await guild.commands.set(commandDefinitions(new Localizer(this.config.BOT_LOCALE, this.config.BOT_TIME_ZONE)).map((command) => command.toJSON()));
+		this.client.user?.setPresence({
+			status: "online",
+			activities: [{ name: this.config.BOT_ACTIVITY_TEXT, type: ActivityType.Playing }],
+		});
 		if (!this.config.RIOT_API_KEY) this.logger.warn("Riot API key is missing; verification, Riot migration work, and Riot synchronization are paused");
 		for (const worker of this.workers) worker.start();
 		this.logger.info({ guildId: guild.id, userId: this.client.user?.id }, "Bot ready");

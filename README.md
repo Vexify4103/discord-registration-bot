@@ -4,6 +4,8 @@
 
 Ein einzelner TypeScript/discord.js-Prozess verwaltet Registrierungen, Riot-Identitäten, drei Discord-Rollen und Nicknames. SQLite/Drizzle ist die Quelle der Wahrheit.
 
+Der Bot zeigt standardmäßig die Aktivität **Spielt Rollen-Tetris**. Der Text kann über `BOT_ACTIVITY_TEXT` geändert werden.
+
 ## Entwicklung
 
 1. Node.js 24 LTS installieren.

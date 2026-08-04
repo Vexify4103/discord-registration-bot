@@ -24,3 +24,8 @@ describe("cleanup configuration", () => {
 describe("migration policy configuration", () => {
 	it("treats unknown nickname formats as unregistered by default", () => expect(configSchema.parse(requiredEnvironment).UNKNOWN_MEMBER_MIGRATION_POLICY).toBe("unregister"));
 });
+
+describe("bot presence configuration", () => {
+	it("uses a German activity by default", () => expect(configSchema.parse(requiredEnvironment).BOT_ACTIVITY_TEXT).toBe("Rollen-Tetris"));
+	it("rejects an empty activity", () => expect(() => configSchema.parse({ ...requiredEnvironment, BOT_ACTIVITY_TEXT: " " })).toThrow());
+});
