@@ -9,7 +9,7 @@ export const de: Record<MessageKey, string> = {
 	"command.contextRegister.name": "Mitglied registrieren",
 	"modal.register.title": "Mitglied registrieren",
 	"modal.register.riotAccountLabel": "Riot-ID oder OP.GG-Link",
-	"modal.register.riotAccountPlaceholder": "Beispiel: RUS Yasuicide#777",
+	"modal.register.riotAccountPlaceholder": "Beispiel: Agony#DoT",
 	"modal.register.nameLabel": "Persönlicher Name",
 	"modal.register.namePlaceholder": "Leer lassen, wenn der Name privat bleibt",
 	"modal.register.visibilityLabel": "Namensanzeige",
