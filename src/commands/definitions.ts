@@ -1,5 +1,6 @@
 import { SlashCommandBuilder } from "discord.js";
 import { Localizer } from "../localization/formatter.js";
+import { staffRegistrationContextCommand } from "./staff-registration-modal.js";
 
 export function commandDefinitions(i18n: Localizer) {
 	const memberCommand = (name: string, descriptionKey: Parameters<Localizer["t"]>[0]) =>
@@ -8,6 +9,7 @@ export function commandDefinitions(i18n: Localizer) {
 			.setDescription(i18n.t(descriptionKey))
 			.addUserOption((o) => o.setName("member").setDescription(i18n.t("command.member")).setRequired(true));
 	return [
+		staffRegistrationContextCommand(i18n),
 		new SlashCommandBuilder()
 			.setName("register")
 			.setDescription(i18n.t("command.register.description"))

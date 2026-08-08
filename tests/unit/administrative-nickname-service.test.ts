@@ -65,10 +65,43 @@ describe("AdministrativeNicknameService", () => {
 		expect(result).toEqual({ kind: "success", status: "VERIFIED_NO_RIOT" });
 		expect(registrations.saveVerifiedWithoutRiot).toHaveBeenCalledWith(expect.objectContaining({ displayName: "Martin", reason: "ADMIN_RIOT_NOT_FOUND" }));
 	});
+
+	it("allows a confirmed administrator to link a duplicate Riot account as a second Discord account", async () => {
+		const registrations = repositoryMock();
+		registrations.findRegisteredByRiotId.mockResolvedValue({
+			status: "REGISTERED",
+			puuid: "duplicate-puuid",
+			gameName: "RUS Yasuicide",
+			tagLine: "777",
+			riotId: "RUS Yasuicide#777",
+			platformRegion: "EUW1",
+			accountRoutingGroup: "europe",
+			opggUrl: "https://www.op.gg/lol/summoners/euw/RUS%20Yasuicide-777",
+		});
+		const byRiotId = vi.fn();
+		const service = new AdministrativeNicknameService(
+			config,
+			registrations as never,
+			{ byRiotId } as never,
+			{ error: vi.fn() } as never
+		);
+		const result = await service.apply({
+			...base,
+			allowDuplicate: true,
+			parsed: { kind: "REGISTERED", visibility: "VISIBLE", displayName: "Alex", gameName: "RUS Yasuicide", tagLine: "777" },
+		});
+
+		expect(result).toEqual({ kind: "success", status: "REGISTERED" });
+		expect(registrations.saveRegistered).toHaveBeenCalledWith(
+			expect.objectContaining({ overrideDuplicate: true, overrideAuthorized: true, displayName: "Alex" })
+		);
+		expect(byRiotId).not.toHaveBeenCalled();
+	});
 });
 
 function repositoryMock() {
 	return {
+		findRegisteredByRiotId: vi.fn().mockResolvedValue(undefined),
 		createAttempt: vi.fn().mockReturnValue("attempt-1"),
 		removeAttempt: vi.fn(),
 		saveRegistered: vi.fn(),

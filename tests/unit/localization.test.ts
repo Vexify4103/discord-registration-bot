@@ -33,9 +33,12 @@ describe("German localization", () => {
 	it("localizes command descriptions", () =>
 		expect(
 			commandDefinitions(i18n)
-				.map((x) => x.toJSON().description)
+				.map((x) => x.toJSON())
+				.map((x) => ("description" in x ? x.description : ""))
 				.join(" ")
 		).toContain("Registriere"));
+	it("publishes the German member registration context command", () =>
+		expect(commandDefinitions(i18n).map((command) => command.toJSON())).toContainEqual(expect.objectContaining({ name: "Mitglied registrieren", type: 2 })));
 	it("places required Discord options before optional options", () => {
 		for (const command of commandDefinitions(i18n).map((value) => value.toJSON())) {
 			let optionalSeen = false;

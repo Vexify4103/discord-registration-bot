@@ -52,6 +52,7 @@ export function createGuildMemberUpdateHandler(
 				discordUsername: newMember.user.username,
 				nickname: newMember.nickname!,
 				parsed,
+				allowDuplicate: permissions.isAdministrator(actor),
 			});
 			await audits.create({
 				guildId: newMember.guild.id,

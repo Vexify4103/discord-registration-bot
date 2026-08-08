@@ -15,6 +15,7 @@ export interface AdministrativeNicknameInput {
 	discordUsername: string;
 	nickname: string;
 	parsed: AdministrativeNickname;
+	allowDuplicate?: boolean;
 }
 
 export class AdministrativeNicknameService {
@@ -29,6 +30,36 @@ export class AdministrativeNicknameService {
 		if (input.parsed.kind === "VERIFIED_NO_RIOT") {
 			await this.saveWithoutRiot(input, "ADMIN_NICKNAME");
 			return { kind: "success", status: "VERIFIED_NO_RIOT" };
+		}
+		if (input.allowDuplicate) {
+			const source = await this.registrations.findRegisteredByRiotId(
+				input.guildId,
+				`${input.parsed.gameName}#${input.parsed.tagLine}`,
+				input.userId
+			);
+			if (source?.puuid && source.gameName && source.tagLine && source.riotId && source.platformRegion && source.accountRoutingGroup && source.opggUrl) {
+				await this.registrations.saveRegistered({
+					guildId: input.guildId,
+					userId: input.userId,
+					actorUserId: input.actorUserId,
+					discordUsername: input.discordUsername,
+					displayName: input.parsed.displayName,
+					nameVisibility: input.parsed.visibility,
+					identity: {
+						puuid: source.puuid,
+						gameName: source.gameName,
+						tagLine: source.tagLine,
+						riotId: source.riotId,
+						platformRegion: source.platformRegion,
+						accountRoutingGroup: source.accountRoutingGroup,
+						opggUrl: source.opggUrl,
+					},
+					priority: 60,
+					overrideDuplicate: true,
+					overrideAuthorized: true,
+				});
+				return { kind: "success", status: "REGISTERED" };
+			}
 		}
 
 		const attemptId = await this.registrations.createAttempt(input.guildId, input.userId, input.actorUserId);
@@ -58,6 +89,8 @@ export class AdministrativeNicknameService {
 						opggUrl: buildOpggUrl(this.config.DEFAULT_RIOT_PLATFORM_REGION, result.account.gameName, result.account.tagLine),
 					},
 					priority: 60,
+					overrideDuplicate: input.allowDuplicate ?? false,
+					overrideAuthorized: input.allowDuplicate ?? false,
 				});
 			} catch (error) {
 				if (error instanceof DuplicatePuuidError) return { kind: "duplicate-puuid" };

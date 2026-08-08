@@ -27,6 +27,7 @@ import { LeagueRepository } from "../repositories/mongo/league-repository.js";
 import { LeagueStatsWorker } from "../jobs/league-stats-worker.js";
 import { ChampionCatalog } from "../integrations/riot/champion-catalog.js";
 import type { AuditRepository } from "../repositories/mongo/audit-repository.js";
+import { handleStaffRegistrationModal, isStaffRegistrationModal, showStaffRegistrationModal } from "./staff-registration-modal.js";
 
 export interface InteractionContext {
 	client: Client;
@@ -49,6 +50,8 @@ export interface InteractionContext {
 export async function handleInteraction(interaction: Interaction, context: InteractionContext): Promise<void> {
 	try {
 		if (interaction.isChatInputCommand()) await handleCommand(interaction, context);
+		else if (interaction.isUserContextMenuCommand()) await showStaffRegistrationModal(interaction, context);
+		else if (interaction.isModalSubmit() && isStaffRegistrationModal(interaction)) await handleStaffRegistrationModal(interaction, context);
 		else if (interaction.isButton()) await handleButton(interaction, context);
 	} catch (error) {
 		context.logger.error({ error: safeErrorDetails(error), interactionId: interaction.id }, "Interaction failed");
@@ -188,6 +191,8 @@ async function handleCommand(interaction: ChatInputCommandInteraction, ctx: Inte
 async function registrationReply(interaction: ChatInputCommandInteraction, result: RegistrationResult, userId: string, ctx: InteractionContext): Promise<void> {
 	const errors: Record<Exclude<RegistrationResult["kind"], "success">, Parameters<Localizer["t"]>[0]> = {
 		"invalid-opgg": "registration.invalidOpggUrl",
+		"invalid-riot-id": "registration.invalidRiotId",
+		"invalid-platform": "registration.invalidPlatform",
 		"name-required": "registration.nameRequired",
 		"name-not-allowed": "registration.nameNotAllowedWhenHidden",
 		"riot-not-found": "registration.riotAccountNotFound",

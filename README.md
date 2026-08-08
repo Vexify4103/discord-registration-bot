@@ -33,7 +33,9 @@ Die Rollen werden nicht automatisch verändert. Die erwartete Reihenfolge ist Bo
 
 Sichtbare Registrierungen verwenden `Name | RiotID#Tag`. Private Registrierungen verwenden `? | RiotID#Tag`; für sie bleibt `displayName=null`, sodass das Fragezeichen nur ein sichtbarer Platzhalter und kein gespeicherter Personenname ist.
 
-Ändert ein berechtigtes Staff-Mitglied den Server-Nickname manuell auf `Name | RiotID#Tag`, `? | RiotID#Tag` oder `Name | ?#?`, übernimmt der Bot die Änderung automatisch in die Datenbank und gleicht die Registrierungsrollen ab. Der Bearbeiter wird sicher über das Discord-Audit-Log bestimmt. Änderungen des Bots selbst oder nicht berechtigter Mitglieder werden nicht als Registrierungsdaten übernommen. Doppelte Riot-Konten benötigen weiterhin eine ausdrückliche administrative Freigabe über `/register-user`.
+Ändert ein berechtigtes Staff-Mitglied den Server-Nickname manuell auf `Name | RiotID#Tag`, `? | RiotID#Tag` oder `Name | ?#?`, übernimmt der Bot die Änderung automatisch in die Datenbank und gleicht die Registrierungsrollen ab. Der Bearbeiter wird sicher über das Discord-Audit-Log bestimmt. Änderungen des Bots selbst oder nicht berechtigter Mitglieder werden nicht als Registrierungsdaten übernommen. Wird dieselbe Riot-ID bereits von einem anderen Discord-Konto verwendet, darf ein bestätigter Administrator sie als Zweitkonto verknüpfen; der ausdrücklich eingegebene persönliche Name und die Sichtbarkeit des neuen Kontos bleiben dabei erhalten.
+
+Über **Rechtsklick auf ein Mitglied → Apps → Mitglied registrieren** steht Staff zusätzlich ein deutsches Registrierungsmodal zur Verfügung. Es akzeptiert eine Riot-ID im Format `RiotName#TAG` oder einen OP.GG-Link sowie persönlichen Namen, Sichtbarkeit und League-Region. Administratoren können damit auch ein bereits registriertes Riot-Konto als Zweitkonto verknüpfen. Lokalisierte OP.GG-Pfade wie `/de/lol/summoners/...` werden ebenfalls akzeptiert.
 
 Automatische Entfernungen nicht registrierter Mitglieder sind standardmäßig deaktiviert. Nur `CLEANUP_ENABLED=true` aktiviert den Kick-Worker; `REGISTRATION_EXPIRY_DAYS` legt dann die Frist fest.
 
